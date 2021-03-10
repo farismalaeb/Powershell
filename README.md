@@ -1,10 +1,9 @@
-## Powershell
+**Welcome to PowerShellCenter.com GitHUB**
+Feel free to pull any script, read it modify it and pull it back for merging.
 
-Hi, This is where I will store all my scripts.
-Feel free to clone and update what you like, and merge it back.
+If you find any issue, kindly report it.
 
-I will work on a lot of Infrastructure scripting and automation.
-
-You can contact me any time on farisnt@gmail.com
+I love to automate things related to Microsoft Infrastructure and challenges that face admins,
+so lets try to build a repo that can help the community.
 
 Thanks
