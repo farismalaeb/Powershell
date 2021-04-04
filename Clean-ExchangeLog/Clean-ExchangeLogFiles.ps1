@@ -6,9 +6,25 @@
 
 .AUTHOR Faris Malaeb
 
-.COPYRIGHT 2021
+.COMPANYNAME 
 
-.EXTERNALMODULEDEPENDENCIES WebAdministration
+.COPYRIGHT 
+
+.TAGS 
+
+.LICENSEURI 
+
+.PROJECTURI 
+
+.ICONURI 
+
+.EXTERNALMODULEDEPENDENCIES 
+
+.REQUIREDSCRIPTS 
+
+.EXTERNALSCRIPTDEPENDENCIES 
+
+.RELEASENOTES
 
 
 #>
@@ -23,8 +39,8 @@
 #> 
 [Cmdletbinding(DefaultParameterSetName='DontTakeAction')]
 Param(
-[parameter(Mandatory=$True,ParameterSetName="TakeAction")][switch]$DeleteLogs,
-[parameter(Mandatory=$False,ParameterSetName="TakeAction")][switch]$SimulateDeleteLogs,
+[parameter(Mandatory=$false,ParameterSetName="TakeAction")][switch]$DeleteLogs,
+[parameter(Mandatory=$False,ParameterSetName="TakeAction")][switch]$SimulateDeleteLogs=$true,
 [parameter(Mandatory=$false,ParameterSetName="DontTakeAction",Position=0)][switch]$JustCalculate=$true,
 [parameter(Mandatory=$False,ParameterSetName="DontTakeAction")]
 [parameter(Mandatory=$False,ParameterSetName="TakeAction")]
@@ -173,16 +189,7 @@ $FolderlistToRemove,
 $NumberOfDaysToDelete,
 [switch]$IsSimulation
 )
-Trap {
-$Error[0].Exception
-}
-
-
 if ($IsSimulation){
-Trap [System.UnauthorizedAccessException]{
-Write-host "Access was denied to $($FolderlistToRemove)"
-continue
-}
 write-host "`nNO delete operation will be performed, Log will be stored in the same script directory."
 Write-host "Simulation Started.. Please wait"-NoNewline
 $FileNameToLog=(Join-Path $PSScriptRoot -ChildPath "FilesForRemoval $(Get-Date -Format "HHmmss").txt")
@@ -198,8 +205,8 @@ $FileNameToLog=(Join-Path $PSScriptRoot -ChildPath "FilesForRemoval $(Get-Date -
     else{
    
 
-        Write-Host "Its Expected to have some failure as logs might be still in used by other process..."
-        Write-host "Operation started... Removing "-NoNewline
+        Write-Host "`nIts Expected to have some failure as logs might be still in used by other process..."
+        Write-host "Operation started... Removing`n "-NoNewline
         $FolderlistToRemove.foreach({
         Write-Host "." -NoNewline -ForegroundColor Red
         @(Get-ChildItem $_ -Recurse -ErrorAction Stop | where {($_.CreationTime -lt ((get-date).AddDays((-$NumberOfDaysToDelete)))) -and ($_.PSIsContainer -like $false) -and (($_.Extension -like "*.log") -or ($_.Extension -like "*.etl"))} ).foreach({
@@ -242,7 +249,6 @@ if ($PSCmdlet.ParameterSetName -like "TakeAction"){
     DeleteLogs -FolderlistToRemove $GetAllFolder -NumberOfDaysToDelete $LogsOlderXDays 
     }
 }
-
 
 
 #USE IT ON YOUR OWN RISK
