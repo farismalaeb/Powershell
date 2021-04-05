@@ -44,7 +44,7 @@ Param(
 [parameter(Mandatory=$false,ParameterSetName="DontTakeAction",Position=0)][switch]$JustCalculate=$true,
 [parameter(Mandatory=$False,ParameterSetName="DontTakeAction")]
 [parameter(Mandatory=$False,ParameterSetName="TakeAction")]
-[ValidateScript({If ($_ -gt 0) {
+[ValidateScript({If ([int]$_ -gt 0) {
             $True
         } Else {
           Throw "Number Of LogsOlderXDays Should Be 1 Or Higher." 
