@@ -86,6 +86,7 @@ $ReadAllFiles=Get-ChildItem -Filter *.dat -Path $PickUpFolder
          Set-Loginfo -UserLog $User -dirToWrite $PickUpFolder -txtmsg "No Active Session Found!"
          Rename-Item -Path $File.FullName -NewName "$($File.Name).Error.$(Get-Date -Format "ss-mm-hh")"
          if ($SMTPEnabled){Send-MailMessage -To $SupportAgent -From $SMTPSender -Body "No Active Session for $($User)"  -SmtpServer $SMTPServer -Subject "User Migration for $($file.Name)" }
+         Start-Sleep 2
         break
             }
         if ($SMTPEnabled){Send-MailMessage -To $SupportAgent -From $SMTPSender -Body "Process Started for  $($User), Please wait while processing..."  -SmtpServer $SMTPServer -Subject "User Migration for $($file.Name)" }
@@ -99,8 +100,9 @@ $ReadAllFiles=Get-ChildItem -Filter *.dat -Path $PickUpFolder
             Mount-VHD -Path $UserDisk.FullName -ReadOnly -ErrorAction Stop
           }
         Catch{
-         Rename-Item -Path $File.FullName -NewName $("$File.Error".$(Get-Date -Format "ss-mm-hh"))
-         Remove-item -Path $File.FullName
+         Set-Loginfo -UserLog $User -dirToWrite $PickUpFolder -txtmsg $error[0]
+         Rename-Item -Path $File.FullName -NewName $("$File.Error.$(Get-Date -Format "ss-mm-hh")")
+        break
         }
         $DiskName=$UserDisk.Name.Replace("_","-").substring(0,($UserDisk.Name.Length -($VHDorVHDX.Length)-1))
 
@@ -164,7 +166,7 @@ $ReadAllFiles=Get-ChildItem -Filter *.dat -Path $PickUpFolder
         catch{
         Set-Loginfo -UserLog $User -dirToWrite $PickUpFolder -txtmsg $Error[0]
         Set-Loginfo -UserLog $User -dirToWrite $PickUpFolder -txtmsg  (Get-Volume)
-        write-host $Error[0].Exception
+        write-host $Error[0] #.Exception
         $filenameToSend=$file.FullName.Replace(".dat",".log")
         if ($SMTPEnabled){Send-MailMessage -To $SupportAgent -From $SMTPSender -Body "Results for user $($User), Please check the attachemnet"  -SmtpServer $SMTPServer -Subject "User Migration for $($file.Name)" -Attachments $filenameToSend}
         Rename-Item -Path $File.FullName -NewName $("$File.Error")
