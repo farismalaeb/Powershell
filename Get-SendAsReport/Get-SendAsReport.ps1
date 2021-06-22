@@ -232,8 +232,8 @@ $HTMLContent=''
 $HTMLContent=($Content | ConvertTo-Html) -replace '<td>Yes</td>', '<td class="CloudSynced">Yes</td>'
 $HTMLContent=$HTMLContent -replace '<td>No</td>', '<td class="NotSynced">No</td>'
 
-
-ConvertTo-Html -Title "PowerShell Center" -Body $HTMLContent  -Head $css -PostContent "<p id='CreationDate'>Creation Date: $(Get-Date)</p>" | Out-File (join-path $PSScriptRoot -ChildPath "ExGroupResults.html")
+$FileName="SendAs-$(((Get-Date).ToLongTimeString()).Replace(':','')).html"
+ConvertTo-Html -Title "PowerShell Center" -Body $HTMLContent  -Head $css -PostContent "<p id='CreationDate'>Creation Date: $(Get-Date)</p>" | Out-File (join-path $PSScriptRoot -ChildPath $FileName)
 
 
 }
