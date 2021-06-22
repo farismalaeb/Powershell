@@ -127,8 +127,8 @@ $SendOnBehalf.OnPremSendAs=((Get-expDistributionGroup $_.name | Get-expADPermiss
                 $SendOnBehalf.IsSyncedGroup="No"
             }
             $SendOnBehalf
-$ReportResults.Add($SendOnBehalf)})
-
+$ReportResults.Add($SendOnBehalf) | Out-Null})
+ConvertResult -Content $ReportResults
 }
 
 Function CloudOnly{
