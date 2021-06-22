@@ -234,7 +234,7 @@ $HTMLContent=$HTMLContent -replace '<td>No</td>', '<td class="NotSynced">No</td>
 
 $FileName="SendAs-$(((Get-Date).ToLongTimeString()).Replace(':','')).html"
 ConvertTo-Html -Title "PowerShell Center" -Body $HTMLContent  -Head $css -PostContent "<p id='CreationDate'>Creation Date: $(Get-Date)</p>" | Out-File (join-path $PSScriptRoot -ChildPath $FileName)
-
+write-host "File is generated, Please check the following path: $((join-path $PSScriptRoot -ChildPath $FileName))"
 
 }
 
