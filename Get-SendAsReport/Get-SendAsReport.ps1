@@ -21,13 +21,20 @@
 .FUNCTIONALITY
    The functionality that best describes this cmdlet
 #>
-[CmdletBinding(HelpUri = 'http://www.powershellcenter.com')]
+[CmdletBinding(HelpUri = 'http://www.powershellcenter.com',DefaultParameterSetName='ReportAll')]
     Param
     (
-        [Parameter(Mandatory=$True)]$OnPremExchangeServer,
-        [parameter(mandatory=$true)]
-        [ValidateSet("Kerberos","Default","Basic")]$Auth="Default"
+        [Parameter(Mandatory=$True,ParameterSetName="ReportAll")]
+        [parameter(ParameterSetName="OnPrem")]$OnPremExchangeServer,
 
+        [parameter(mandatory=$true,ParameterSetName="ReportAll")]
+        [parameter(ParameterSetName="OnPrem")]
+        [ValidateSet("Kerberos","Default","Basic")]$Auth="Default",
+
+        [parameter(ParameterSetName="ReportAll")][switch]$ReportAll,
+        [parameter(ParameterSetName="OnPrem")][switch]$OnPremisesOnly,
+        [Parameter(Mandatory=$True,ParameterSetName="CloudOnly")][switch]$CloudOnly
+      
     )
 
 
@@ -84,7 +91,11 @@ param(
     }
 }
 
-ConnectToExchangeOnPrem -OnPremExchangeServer $OnPremExchangeServer -Authentication $Auth
+Function ReportAll{
+param(
+$EXName,$authmethod)
+
+ConnectToExchangeOnPrem -OnPremExchangeServer $EXName -Authentication $authmethod
 ConnectToExchangeOnCloud
 
 [System.Collections.ArrayList]$ReportResults=@()
@@ -118,7 +129,61 @@ $SendOnBehalf.OnPremSendAs=((Get-expDistributionGroup $_.name | Get-expADPermiss
             $SendOnBehalf
 $ReportResults.Add($SendOnBehalf)})
 
+}
 
+Function CloudOnly{
+ConnectToExchangeOnCloud
+[System.Collections.ArrayList]$CloudResults=@()
+
+Write-Host "Reading Cloud Distribution Groups, Please wait..."
+$CloudOnlyDist=Get-excDistributionGroup
+
+$CloudOnlyDist.foreach({
+$CloudSendAs=[pscustomobject]@{
+               GroupName=''
+               OnCloudSendAs=''
+               OnCloudSendOnBehalf=''
+               }
+
+Write-Host "Group Name: $($_.Name)" -ForegroundColor Green
+$CloudSendAs.GroupName =$_.Name  
+$CloudSendAs.OnCloudSendAs=((Get-excRecipientPermission $_.name | where {$_.AccessRights -like "SendAS"}).Trustee -join ",")
+$CloudSendAs.OnCloudSendOnBehalf=((Get-excDistributionGroup $_.name).GrantSendOnBehalfTo -join ",")
+$CloudResults.Add($CloudSendAs)| Out-Null })
+Write-Host "Fetching Data is complete.. Please wait while writing the report..."
+ConvertResult -Content $CloudResults
+}
+
+
+
+Function OnPremOnly{
+param(
+$ExServer,$AuthMethod)
+
+    ConnectToExchangeOnPrem -OnPremExchangeServer $ExServer -Authentication $AuthMethod
+    [System.Collections.ArrayList]$OnPremResults=@()
+
+    Write-Host "Reading Local Distribution Groups, Please wait..."
+    $LocalDist=Get-expDistributionGroup
+    $LocalDist.foreach({
+    Write-Host "Reading $($_.name) Information..." -ForegroundColor Green 
+    $OnPremPermission=[pscustomobject]@{OnPremGroupName=''
+                   OnPremSendOnBehalf=''
+                   OnPremSendAs=''
+                   }
+    $OnPremPermission.OnPremGroupName=$_.Name  
+    $PremOnBehalf=$_.GrantSendOnBehalfTo.foreach{ ($_.Split("/"))[-1]}
+    $OnPremPermission.OnPremSendOnBehalf=($PremOnBehalf -join ",")
+    $OnPremPermission.OnPremSendAs=((Get-expDistributionGroup $_.name | Get-expADPermission | where {($_.ExtendedRights -like “*Send-As*”)} ).user -join ",")
+    $OnPremResults.Add($OnPremPermission) | Out-Null
+    })
+    $OnPremResults
+}
+
+Function ConvertResult{
+Param(
+$Content
+)
 $css = @"
 <style> 
     
@@ -163,8 +228,19 @@ $css = @"
 </style>
 "@
 
-$HTMLContent=($ReportResults | ConvertTo-Html) -replace '<td>Yes</td>', '<td class="CloudSynced">Yes</td>'
+$HTMLContent=''
+$HTMLContent=($Content | ConvertTo-Html) -replace '<td>Yes</td>', '<td class="CloudSynced">Yes</td>'
 $HTMLContent=$HTMLContent -replace '<td>No</td>', '<td class="NotSynced">No</td>'
 
 
-ConvertTo-Html -Title "Hotfix" -Body $HTMLContent  -Head $css -PostContent "<p id='CreationDate'>Creation Date: $(Get-Date)</p>" | Out-File (join-path $PSScriptRoot -ChildPath "ExGroupResults.html")
+ConvertTo-Html -Title "PowerShell Center" -Body $HTMLContent  -Head $css -PostContent "<p id='CreationDate'>Creation Date: $(Get-Date)</p>" | Out-File (join-path $PSScriptRoot -ChildPath "ExGroupResults.html")
+
+
+}
+
+switch ($PSBoundParameters.Keys)
+{
+    'CloudOnly' {CloudOnly}
+    'OnPremisesOnly' {OnPremOnly -ExServer $OnPremExchangeServer -AuthMethod $Auth}
+    'ReportAll' {ReportAll -EXName $OnPremExchangeServer -authmethod $Auth}
+}
