@@ -105,9 +105,7 @@ Function Start-PSCRemoteLogoff{
             Write-Host $LogoffStatus -ForegroundColor Green
             
       }
-
-    if ($PSBoundParameters.ContainsKey("LogoffAll"))
-    {       
+      Else{
        Write-Host "Logging Off All Users from $($Name)"
         foreach($RemSession in $ActiveSession){
         $RemSession
