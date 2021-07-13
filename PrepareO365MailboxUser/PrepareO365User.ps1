@@ -42,7 +42,7 @@ Begin{
       Process
         {
             Try{
-        Write-Host 'Reading ' -NoNewline
+        Write-Host 'Reading ' -NoNewline -ForegroundColor Yellow
         $SamAccountName
         $xmail=(Get-Mailbox $SamAccountName -ErrorAction stop).EmailAddresses
                 Add-Content -Path (Join-Path $PSScriptRoot  "$($SamAccountName).txt") -Value $xmail
