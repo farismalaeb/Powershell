@@ -21,76 +21,53 @@
                         it will create a copy of the user configuration before doing any change and dump it in a text
 
 #> 
-[cmdletbinding(DefaultParameterSetName="SingleUserMode")]
+#Requires -PSSnapin Microsoft.Exchange.Management.PowerShell.SnapIn
+
+[cmdletbinding()]
 param(
-[parameter(Mandatory=$true,ParameterSetName="email",Position=1)]$EmailDomainToRemove=@(),
-[parameter(Mandatory=$False,ParameterSetName="email")]$ExchangeConnectionURL="",
-[parameter(Mandatory=$False,ParameterSetName="email")]$OU,
-[parameter(Mandatory=$False,ParameterSetName="email")][switch]$BackupFirst
-
-
+[parameter(Mandatory=$true,Position=0,ValueFromPipelineByPropertyName=$true)]$SamAccountName,
+[parameter(Mandatory=$true)]$EmailDomainToRemove=@()
 
 )
+Begin{
+    Function Start-PSCMailboxCleanup
+    {
+        [CmdletBinding()]
+        Param
+        (
+            [Parameter(Mandatory=$true)]$SamAccountName,
+            [parameter(Mandatory=$False)]$BadSMTPDomain
 
-function ExchangeConnection{
-
-    if ($ExchangeConnectionURL){
-        StartExchangeConnection
-        } 
-
-            if (!($ExchangeConnectionURL)){
-                Write-Host "Checking if an active exchange session available to use"
-                if (Get-PSSession | Where-Object {($_.ConfigurationName -like "microsoft.exchange") -and ($_.State -like "Opened")}){
-                    Write-Host "An active session found"
-                    write-host "Proceeding with the configuration..."
-
+        )
+      Process
+        {
+            Try{
+        Write-Host 'Reading ' -NoNewline
+        $SamAccountName
+        $xmail=(Get-Mailbox $SamAccountName -ErrorAction stop).EmailAddresses
+                Add-Content -Path (Join-Path $PSScriptRoot  "$($SamAccountName).txt") -Value $xmail
+                $FixedEmail=($xmail | where {$_ -notlike "*$($EmailDomainToRemove)*"})
+                return $FixedEmail
+                set-mailbox $singlemail.UserPrincipalName -EmailAddresses $FixedEmail
                 }
-                    else{
-                    throw "Active Exchange Session not found, Please re-run the script and set the ExchangeConnectionURL"
- 
+                catch{
+                $_.exception.message
+                }
 
-                     }
-           }
-    }
-
-function StartExchangeConnection {
-    
-     try{
-        Write-Host "Connecting to exchange"
-        $EXSession=New-PSSession -ConnectionUri $ExchangeConnectionURL -ConfigurationName microsoft.exchange -ErrorAction Stop #-Authentication Default #uncomment if required
-        Import-PSSession $EXSession -AllowClobber
 
         }
+ 
+    }
+   }
+
+   Process
+   {
+ Try{
+Start-PSCMailboxCleanup -SamAccountName $SamAccountName -BadSMTPDomain $EmailDomainToRemove
+ }
     catch{
         Write-Host "Ops, I failed... check the error"
-        throw $_.Exception.Message
-
-    }
-}
-
-
-
-
-write-host "Connecting and checking exchange connection.. Please wait"
-ExchangeConnection
-Write-Host "WANRNING:"-NoNewline -ForegroundColor Yellow
-Write-Host "THIS POWERSHELL SCRIPT WILL REMOVE " -NoNewline -ForegroundColor Red ; Write-Host $($EmailDomainToRemove).ToUpper() -NoNewline -ForegroundColor Green; Write-Host " FROM ALL USERS IN THE ORGANIZATION... ARE YOU SURE (Y/N)" -ForegroundColor Red
-$conf=Read-Host "Please Type Y to continue, or anything else to exit"
-if (($conf -like "y") -or ($conf -like "Y")){
-
-if ($OU){ $allEmails= Get-Mailbox -OrganizationalUnit $OU | where {($_.Alias -notlike "*{*}")}}
-Else{$allEmails= Get-Mailbox | where {($_.Alias -notlike "*{*}")}}
-        foreach ($singlemail in $allEmails){
+        $_.Execption.Message
+     }
         
-            $xmail=(Get-Mailbox $singlemail.UserPrincipalName).EmailAddresses
-
-                if ($BackupFirst){
-                Add-Content -Path (Join-Path $PSScriptRoot "$($singlemail.DisplayName).txt") -Value $xmail
-                }
-
-            $FixedEmail=($xmail | where {$_ -notlike "*$($EmailDomainToRemove)*"})
-            set-mailbox $singlemail.UserPrincipalName -EmailAddresses $FixedEmail
-
-        }
-
 }
