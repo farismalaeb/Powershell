@@ -42,13 +42,13 @@ Begin{
       Process
         {
             Try{
-        Write-Host 'Reading ' -NoNewline -ForegroundColor Yellow
-        $SamAccountName
+        Write-Host ""
+        Write-Host "ProcessingReading $($SamAccountName)"
         $xmail=(Get-Mailbox $SamAccountName -ErrorAction stop).EmailAddresses
                 Add-Content -Path (Join-Path $PSScriptRoot  "$($SamAccountName).txt") -Value $xmail
                 $FixedEmail=($xmail | where {$_ -notlike "*$($EmailDomainToRemove)*"})
-                return $FixedEmail
-                set-mailbox $singlemail.UserPrincipalName -EmailAddresses $FixedEmail
+                set-mailbox $SamAccountName -EmailAddresses $FixedEmail
+                 return $FixedEmail
                 }
                 catch{
                 $_.exception.message
