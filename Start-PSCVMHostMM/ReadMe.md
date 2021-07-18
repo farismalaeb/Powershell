@@ -13,3 +13,5 @@ The Script will not overload any node as you can set a max memory load nodes sho
     - MaxMemAllowed: Percentage of memory limit, default is 90, if the server memory load is 90% or more VMs wont be moved to this server.
     - FromCluster: Cluster name where the hosts are exist.
     - vCenter: vCenter IP address or name.
+    
+https://www.powershellcenter.com/2020/08/14/vmware_esxi_standard_maintenance/
