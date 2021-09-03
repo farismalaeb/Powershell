@@ -1,4 +1,4 @@
-**Welcome to PowerShellCenter.com GitHUB**
+**Welcome to PowerShellCenter.com GitHub**
 Feel free to pull any script, read it modify it and pull it back for merging.
 
 If you find any issue, kindly report it.
