@@ -3,8 +3,8 @@
 ### Update for version 1.1.1
 
 - No more seperate cmdlet to scan the domain, instead use the main cmdlet **Get-PscActiveDirectoryACL** and set the parameter **ACLToInclude** to **All**, **DCOnly** or **OUScanOnly**
-- Added **ScanDNName** parameter to scan a OU or container tree insted of scanning the entire ActiveDirectory
-- Better reporting, now the report can tell exactly each ADObject to which property is is allowed or denied access to.
+- Added **ScanDNName** parameter to scan an OU or container tree instead of scanning the entire ActiveDirectory
+- Better reporting. The report can tell exactly each ADObject to which property is allowed or denied access.
 - Show to which object type (Users, Groups, Computers, Contact...etc.) the permission are applied to
 - Added **DontRunBasicSecurityCheck** parameter to bypass the basic security check.
 - Include basic spelling correction.
