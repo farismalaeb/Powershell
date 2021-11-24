@@ -1,8 +1,8 @@
 ﻿[cmdletbinding()]
 param(
 [parameter(Mandatory=$true)]$HostToScan,
-[parameter(Mandatory=$true,ParameterSetName="Range")]$StartingPort,
-[parameter(Mandatory=$true,ParameterSetName="Range")]$EndingPort,
+[parameter(Mandatory=$true,ParameterSetName="Range")][int]$StartingPort,
+[parameter(Mandatory=$true,ParameterSetName="Range")][int]$EndingPort,
 [parameter(Mandatory=$true,ParameterSetName="SelectivePort")][array]$SelectivePort
 )
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
@@ -50,7 +50,10 @@ if ($PSCmdlet.ParameterSetName -like "SelectivePort"){
 
 
 foreach ($SinglePort in $SelectivePort){
-
+if ($SinglePort.gettype().name -notlike 'int32'){
+    Write-Host "$($SinglePort) is an invalid port number"
+    return
+    }
     $Body=@{
         remoteHost =$HostToScan
         start_port = $SinglePort
