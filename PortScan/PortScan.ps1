@@ -23,6 +23,11 @@ if ($PSCmdlet.ParameterSetName -like "Range"){
 try{
 
     $WebResult=(Invoke-RestMethod -Method Post -Body $Body -Uri 'https://www.ipfingerprints.com/scripts/getPortsInfo.php' -ErrorAction Stop).PortScanInfo.Split("`n") |where {$_ -match "(^\d*)\/\D{3}"}
+    if (!($WebResult)){
+        Write-Host "No result return, Please check the site name or IP if its valid or not" -ForegroundColor Red 
+        return
+        }
+
     foreach ($Singleline in $WebResult){
 
     $FilteredResult=[pscustomobject]@{
@@ -72,7 +77,11 @@ if ($SinglePort.gettype().name -notlike 'int32'){
 
         Try{
     $SingleWebRequest=(Invoke-RestMethod -Method Post -Body $Body -Uri 'https://www.ipfingerprints.com/scripts/getPortsInfo.php' -ErrorAction Stop).PortScanInfo.Split("`n") |where {$_ -match "(^\d*)\/\D{3}"}
-    
+        if (!($SingleWebRequest)){
+        Write-Host "No result return, Please check the site name or IP if its valid or not" -ForegroundColor Red 
+        return
+        }
+
       $SingleFilteredResult.Port=([regex]::Matches($SingleWebRequest,"^\d*")).value
       if ($SingleWebRequest -like "*open*"){ $SingleFilteredResult.Result="Open"}
       Else{ $SingleFilteredResult.Result="Filtered"}
@@ -87,7 +96,7 @@ if ($SinglePort.gettype().name -notlike 'int32'){
 
 }    
     
-    $OpenPorts
+return  $OpenPorts
 
 
 
