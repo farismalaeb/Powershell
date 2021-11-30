@@ -1,4 +1,42 @@
-﻿[cmdletbinding()]
+
+<#PSScriptInfo
+
+.VERSION 1.0.0.0
+
+.GUID 1fc69e57-b727-43ce-b317-8ad9c7d020b0
+
+.AUTHOR Faris Malaeb
+
+.COMPANYNAME 
+
+.COPYRIGHT 
+
+.TAGS Port,External Scanning, Security, TCP/IP
+
+.LICENSEURI 
+
+.PROJECTURI https://github.com/farismalaeb/Powershell/tree/master/PortScan
+
+.ICONURI 
+
+.EXTERNALMODULEDEPENDENCIES 
+
+.REQUIREDSCRIPTS 
+
+.EXTERNALSCRIPTDEPENDENCIES 
+
+.RELEASENOTES
+
+
+#>
+
+<# 
+
+.DESCRIPTION 
+ Perform External Port Scanning 
+
+#> 
+[cmdletbinding()]
 param(
 [parameter(Mandatory=$true)]$HostToScan,
 [parameter(Mandatory=$true,ParameterSetName="Range")][int]$StartingPort,
@@ -97,6 +135,9 @@ if ($SinglePort.gettype().name -notlike 'int32'){
 }    
     
 return  $OpenPorts
+
+
+
 
 
 
