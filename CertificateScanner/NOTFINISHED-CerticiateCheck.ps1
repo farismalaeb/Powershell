@@ -3,7 +3,12 @@
 [parameter(mandatory=$false)]$NoCertValidation=$true,
 [parameter(mandatory=$false)]
 [validateset("Tls","Tls11","Tls12","Ssl3","SystemDefault")]$ProtocolVersion='SystemDefault',
-[parameter(mandatory=$false)]$SaveAsTo
+[parameter(mandatory=$false)]$SaveAsTo,
+[parameter(mandatory=$false,ParameterSetName="email")][Bool]$SendToEmail,
+[parameter(mandatory=$true,ParameterSetName="email")]$EmailSendTo,
+[parameter(mandatory=$true,ParameterSetName="email")]$EmailFrom,
+[parameter(mandatory=$true,ParameterSetName="email")]$EmailSMTPServer,
+[parameter(mandatory=$true,ParameterSetName="email")]$EmailSubject
 )
 
 if (!(Test-Path $FilePath)){Throw "Incorrect Source Path."}
@@ -50,7 +55,6 @@ $results.StartDate=$sslStream.RemoteCertificate.GetEffectiveDateString()
         }
 $results.EndDate=$sslStream.RemoteCertificate.GetExpirationDateString()
 $Fullresult+=$results
-$Fullresult
 }
 Catch{
 Write-Host $URL -NoNewline -ForegroundColor red " -- ERROR --> " $_.exception.Message
