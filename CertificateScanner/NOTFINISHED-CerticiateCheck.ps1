@@ -2,7 +2,7 @@
 [parameter(mandatory=$true)]$FilePath,
 [parameter(mandatory=$false)]$NoCertValidation=$true,
 [parameter(mandatory=$false)]
-[validateset("Tls","TLS11","Tls12","Ssl3","SystemDefault")]$ProtocolVersion='TLS11',
+[validateset("Tls","Tls11","Tls12","Ssl3","SystemDefault")]$ProtocolVersion='SystemDefault',
 [parameter(mandatory=$false)]$SaveAsTo
 )
 
@@ -23,23 +23,32 @@ Foreach($url in $CertificateList){
 
 
 
-[Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
 Try{
 $results=[PSCustomObject]@{
         URL=''
         StartDate=''
         EndDate=''
     }
+### New Code
+    if ($url -match '([a-z]+|[A-Z]+):\/\/'){
+        $url=$url.Substring($Matches[0].Length)
+        }
+    if ($url -match '\/$'){
+    $url=$url.Substring(0,$url.Length-1)
+    }
 
-$req = [Net.HttpWebRequest]::Create($url)
-$req.GetResponse() |Out-Null
+$socket = New-Object Net.Sockets.TcpClient($url, 443)
+$stream = $socket.GetStream()
+$sslStream = New-Object System.Net.Security.SslStream($stream,$false,({$True} -as [Net.Security.RemoteCertificateValidationCallback]))
+$sslStream.AuthenticateAsClient($url)
+$socket.close()###
 $results.URL=$url
-$results.StartDate=$req.ServicePoint.Certificate.GetEffectiveDateString()
-    if ([datetime]$req.ServicePoint.Certificate.GetExpirationDateString() -le (Get-Date).Date){
+$results.StartDate=$sslStream.RemoteCertificate.GetEffectiveDateString()
+    if ([datetime]$sslStream.RemoteCertificate.GetExpirationDateString() -le (Get-Date).Date){
     Write-Host $url -NoNewline -ForegroundColor Yellow
     Write-Host " EXPIRD..." -ForegroundColor red
         }
-$results.EndDate=$req.ServicePoint.Certificate.GetExpirationDateString()
+$results.EndDate=$sslStream.RemoteCertificate.GetExpirationDateString()
 $Fullresult+=$results
 $Fullresult
 }
@@ -54,5 +63,6 @@ $Fullresult+=$results
 
 }
 Write-Host "`nThe Full result are as the following"
-$Fullresult | ft
+$Fullresult | ft *
 
+$Fullresult | Export-Csv -Path $SaveAsTo -NoTypeInformation
