@@ -1,10 +1,18 @@
-﻿param(
+[CmdletBinding(DefaultParameterSetName='Default')]
+param(
 [parameter(mandatory=$true)]$FilePath,
 [parameter(mandatory=$false)]$NoCertValidation=$true,
 [parameter(mandatory=$false)]
 [validateset("Tls","Tls11","Tls12","Ssl3","SystemDefault")]$ProtocolVersion='SystemDefault',
-[parameter(mandatory=$false)]$SaveAsTo
+[parameter(mandatory=$false)]$SaveAsTo,
+[parameter(mandatory=$true,ParameterSetName="email")]$EmailSendTo,
+[parameter(mandatory=$true,ParameterSetName="email")]$EmailFrom,
+[parameter(mandatory=$true,ParameterSetName="email")]$EmailSMTPServer,
+[parameter(mandatory=$false,ParameterSetName="email")]$EmailSMTPServerPort="25",
+[parameter(mandatory=$false,ParameterSetName="email")][bool]$EmailSMTPServerSSL=$false,
+[parameter(mandatory=$true,ParameterSetName="email")]$EmailSubject
 )
+
 
 if (!(Test-Path $FilePath)){Throw "Incorrect Source Path."}
 $Fullresult=@()
@@ -50,7 +58,6 @@ $results.StartDate=$sslStream.RemoteCertificate.GetEffectiveDateString()
         }
 $results.EndDate=$sslStream.RemoteCertificate.GetExpirationDateString()
 $Fullresult+=$results
-$Fullresult
 }
 Catch{
 Write-Host $URL -NoNewline -ForegroundColor red " -- ERROR --> " $_.exception.Message
@@ -65,4 +72,32 @@ $Fullresult+=$results
 Write-Host "`nThe Full result are as the following"
 $Fullresult | ft *
 
-$Fullresult | Export-Csv -Path $SaveAsTo -NoTypeInformation
+    if ($PSBoundParameters.Keys -like "SaveAsTo"){
+    try{
+        $Fullresult | Export-Csv -Path $SaveAsTo -NoTypeInformation
+        }
+        catch{
+        Throw $_.exception.message
+        }
+    }
+
+    if ($PSCmdlet.ParameterSetName -like "email"){
+       try{
+       $SendMail=@{
+       From=$EmailFrom
+       To =$EmailSendTo
+       Subject =$EmailSubject
+       Body =($Fullresult | Out-String)
+       SmtpServer =$EmailSMTPServer 
+       Credential =(Get-Credential)
+       Port= $EmailSMTPServerPort
+       UseSsl = $EmailSMTPServerSSL
+       }
+        Send-MailMessage @sendmail 
+        }
+        Catch{
+        Throw $_.exception.message 
+        }
+    }
+ 
+
