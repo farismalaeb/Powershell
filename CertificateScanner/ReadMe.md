@@ -14,7 +14,6 @@ This script scans for the following certificate details:
 The following parameters are available:
 
 - **FilePath**: Path for a txt file that include the domains
-- **NoCertValidation**: Dont check Certificate health.
 - **ProtocolVersion**: Select the protocol to connect this include TLS, TLS1.1, TLS1.2 and SSLv3
 - **SaveAsTo**: Location to save the result to (CSV).
 - **EmailSendTo**: Send a copy of the report.
@@ -32,7 +31,7 @@ The script can sanitize the list and clear the list.
 The following example scans a list of sites and show the result on the screen.
 
 ````powershell-console
-.\CertificateScanner.ps1 -FilePath C:\test.txt -NoCertValidation $true
+.\CertificateScanner.ps1 -FilePath C:\test.txt
 
 www.sdfkjsfds.ce  -- ERROR -->  Exception calling ".ctor" with "2" argument(s): "No such host is known."
 The Full result are as the following
@@ -42,18 +41,21 @@ StartDate : 20-Apr-21 11:10:07 PM
 EndDate   : 22-May-22 11:10:06 PM
 Issuer    : CN=GlobalSign Atlas R3 DV TLS CA 2020, O=GlobalSign nv-sa, C=BE
 Subject   : CN=*.api.cnn.com
+Protocol  : Tls11
 
 URL       : www.microsoft.com
 StartDate : 29-Jul-21 1:22:06 AM
 EndDate   : 29-Jul-22 1:22:06 AM
 Issuer    : CN=Microsoft RSA TLS CA 01, O=Microsoft Corporation, C=US
 Subject   : CN=www.microsoft.com, OU=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=WA, C=US
+Protocol  : Tls11
 
 URL       : www.google.com
 StartDate : 29-Nov-21 7:36:34 AM
 EndDate   : 21-Feb-22 7:36:33 AM
 Issuer    : CN=GTS CA 1C3, O=Google Trust Services LLC, C=US
 Subject   : CN=www.google.com
+Protocol  : Tls11
 
 URL       : www.sdfkjsfds.ce
 StartDate : Exception calling ".ctor" with "2" argument(s): "No such host is known."
