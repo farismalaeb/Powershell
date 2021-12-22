@@ -37,7 +37,6 @@ $results=[PSCustomObject]@{
         StartDate=''
         EndDate=''
     }
-### New Code
     if ($url -match '([a-z]+|[A-Z]+):\/\/'){
         $url=$url.Substring($Matches[0].Length)
         }
@@ -49,7 +48,7 @@ $socket = New-Object Net.Sockets.TcpClient($url, 443)
 $stream = $socket.GetStream()
 $sslStream = New-Object System.Net.Security.SslStream($stream,$false,({$True} -as [Net.Security.RemoteCertificateValidationCallback]))
 $sslStream.AuthenticateAsClient($url)
-$socket.close()###
+$socket.close()
 $results.URL=$url
 $results.StartDate=$sslStream.RemoteCertificate.GetEffectiveDateString()
     if ([datetime]$sslStream.RemoteCertificate.GetExpirationDateString() -le (Get-Date).Date){
@@ -70,7 +69,7 @@ $Fullresult+=$results
 
 }
 Write-Host "`nThe Full result are as the following"
-$Fullresult | ft *
+$Fullresult | format-list *
 
     if ($PSBoundParameters.Keys -like "SaveAsTo"){
     try{
