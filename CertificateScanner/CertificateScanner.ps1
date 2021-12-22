@@ -1,9 +1,8 @@
 [CmdletBinding(DefaultParameterSetName='Default')]
 param(
 [parameter(mandatory=$true)]$FilePath,
-[parameter(mandatory=$false)]$NoCertValidation=$true,
 [parameter(mandatory=$false)]
-[validateset("Tls","Tls11","Tls12","Ssl3","SystemDefault")]$ProtocolVersion='SystemDefault',
+[validateset("Tls","Tls11","Tls12","Ssl3","Default")]$ProtocolVersion='Default',
 [parameter(mandatory=$false)]$SaveAsTo,
 [parameter(mandatory=$true,ParameterSetName="email")]$EmailSendTo,
 [parameter(mandatory=$true,ParameterSetName="email")]$EmailFrom,
@@ -17,20 +16,8 @@ param(
 if (!(Test-Path $FilePath)){Throw "Incorrect Source Path."}
 $Fullresult=@()
 $CertificateList=Get-Content -Path $FilePath
-
+[Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
 Foreach($url in $CertificateList){
-
-    switch ($NoCertValidation){
-        $True  {[Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }}
-        $false {[Net.ServicePointManager]::ServerCertificateValidationCallback = { $False}}
-    }
-
-    if ($PSBoundParameters.Keys -like "ProtocolVersion"){
-         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::$ProtocolVersion
-    }
-
-
-
 Try{
 $results=[PSCustomObject]@{
         URL=''
@@ -38,6 +25,7 @@ $results=[PSCustomObject]@{
         EndDate=''
         Issuer=''
         Subject=''
+        Protocol=''
     }
     if ($url -match '([a-z]+|[A-Z]+):\/\/'){
         $url=$url.Substring($Matches[0].Length)
@@ -45,11 +33,16 @@ $results=[PSCustomObject]@{
     if ($url -match '\/$'){
     $url=$url.Substring(0,$url.Length-1)
     }
-
+Try{
 $socket = New-Object Net.Sockets.TcpClient($url, 443)
+}
+Catch{
+write-host 'Unable to connect, maybe site is down?!'
+$_.exception.message
+}
 $stream = $socket.GetStream()
 $sslStream = New-Object System.Net.Security.SslStream($stream,$false,({$True} -as [Net.Security.RemoteCertificateValidationCallback]))
-$sslStream.AuthenticateAsClient($url)
+$sslStream.AuthenticateAsClient($url,$null,[System.Security.Authentication.SslProtocols]$ProtocolVersion,$false)         
 $socket.close()
 $results.URL=$url
 $results.StartDate=$sslStream.RemoteCertificate.GetEffectiveDateString()
@@ -60,13 +53,15 @@ $results.StartDate=$sslStream.RemoteCertificate.GetEffectiveDateString()
 $results.EndDate=$sslStream.RemoteCertificate.GetExpirationDateString()
 $results.Issuer=$sslStream.RemoteCertificate.Issuer
 $results.Subject=$sslStream.RemoteCertificate.Subject
+$results.protocol=$ProtocolVersion
 $Fullresult+=$results
 }
 Catch{
 Write-Host $URL -NoNewline -ForegroundColor red " -- ERROR --> " $_.exception.Message
+Write-Host "`nMaybe Unsupported protocol.."
 $results.URL=$url
 $results.StartDate=$_.exception.Message
-$results.EndDate=$_.exception.Message
+$results.EndDate="Maybe Unsupported protocol.."
 $Fullresult+=$results
 
 }
