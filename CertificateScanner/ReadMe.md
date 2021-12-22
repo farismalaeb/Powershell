@@ -76,3 +76,5 @@ In the example below, the script uses SSLv3 to connect and get the certificate i
 ````
 
 > This depends on the client, the OS, and some security devices on the network route, as I did some tests, and sometimes the connection still uses the TLS1.2 even though the protocol argument is set to TLS1.0. If I was wrong, feel free and correct this point.
+
+> Keep in mind that PowerShell 7 dont support SSLv3
