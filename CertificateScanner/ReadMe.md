@@ -24,6 +24,9 @@ The following parameters are available:
 - **EmailSMTPServerSSL**: Use SSL for communication
 - **EmailSubject**: The Message Subject to use.
 
+> The **FilePath** should contain a site list one on each line, the format should be only the site without the https.
+The script can sanitize the list and clear the list.
+
 ## Example
 
 The following example scans a list of sites and show the result on the screen.
@@ -37,18 +40,26 @@ The Full result are as the following
 URL       : www.cnn.com
 StartDate : 20-Apr-21 11:10:07 PM
 EndDate   : 22-May-22 11:10:06 PM
+Issuer    : CN=GlobalSign Atlas R3 DV TLS CA 2020, O=GlobalSign nv-sa, C=BE
+Subject   : CN=*.api.cnn.com
 
 URL       : www.microsoft.com
 StartDate : 29-Jul-21 1:22:06 AM
 EndDate   : 29-Jul-22 1:22:06 AM
+Issuer    : CN=Microsoft RSA TLS CA 01, O=Microsoft Corporation, C=US
+Subject   : CN=www.microsoft.com, OU=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=WA, C=US
 
 URL       : www.google.com
 StartDate : 29-Nov-21 7:36:34 AM
 EndDate   : 21-Feb-22 7:36:33 AM
+Issuer    : CN=GTS CA 1C3, O=Google Trust Services LLC, C=US
+Subject   : CN=www.google.com
 
 URL       : www.sdfkjsfds.ce
 StartDate : Exception calling ".ctor" with "2" argument(s): "No such host is known."
 EndDate   : Exception calling ".ctor" with "2" argument(s): "No such host is known."
+Issuer    :
+Subject   :
 ````
 
 ## Saving the resulto to a file

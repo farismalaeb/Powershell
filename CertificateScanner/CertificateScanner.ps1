@@ -36,6 +36,8 @@ $results=[PSCustomObject]@{
         URL=''
         StartDate=''
         EndDate=''
+        Issuer=''
+        Subject=''
     }
     if ($url -match '([a-z]+|[A-Z]+):\/\/'){
         $url=$url.Substring($Matches[0].Length)
@@ -56,6 +58,8 @@ $results.StartDate=$sslStream.RemoteCertificate.GetEffectiveDateString()
     Write-Host " EXPIRD..." -ForegroundColor red
         }
 $results.EndDate=$sslStream.RemoteCertificate.GetExpirationDateString()
+$results.Issuer=$sslStream.RemoteCertificate.Issuer
+$results.Subject=$sslStream.RemoteCertificate.Subject
 $Fullresult+=$results
 }
 Catch{
