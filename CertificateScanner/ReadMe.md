@@ -20,12 +20,12 @@ The following parameters are available:
 - [Mandatory, String] **FilePath**: Path for a txt file that include the domains
 - [Optional, ValidationSet]**ProtocolVersion: Select the protocol to connect this include TLS, TLS1.1, TLS1.2 and SSLv3
 - [Optional, String]**SaveAsTo**: Location to save the result to (CSV).
-- [Optional, String]**EmailSendTo**: Send a copy of the report.
-- [Optional, String]**EmailFrom**: The Email Sender
-- [Optional, String]**EmailSMTPServer**: SMTP Server to use for mail relay.
-- [Optional, String]**EmailSMTPServerPort**: SMTP Server Port, usually its 25
-- [Optional, Switch]**EmailSMTPServerSSL**: Use SSL for communication
-- [Optional, String]**EmailSubject**: The Message Subject to use.
+- [Mandatory, String,ParameterSet]**EmailSendTo**: Send a copy of the report.
+- [Mandatory, String,ParameterSet]**EmailFrom**: The Email Sender
+- [Mandatory, String,ParameterSet]**EmailSMTPServer**: SMTP Server to use for mail relay.
+- [Optional, String,ParameterSet]**EmailSMTPServerPort**: SMTP Server Port, usually its 25
+- [Optional, Switch,ParameterSet]**EmailSMTPServerSSL**: Use SSL for communication
+- [Mandatory, String,ParameterSet]**EmailSubject**: The Message Subject to use.
 
 > The **FilePath** should contain a site list one on each line, the format should be only the site without the https.
 The script can sanitize the list and clear the list.
