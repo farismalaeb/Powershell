@@ -68,7 +68,7 @@ $Fullresult+=$results
 
 }
 Write-Host "`nThe Full result are as the following"
-$Fullresult | format-list *
+return $Fullresult 
 
     if ($PSBoundParameters.Keys -like "SaveAsTo"){
     try{
