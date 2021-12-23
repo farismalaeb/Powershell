@@ -8,7 +8,7 @@ param(
 [parameter(mandatory=$true,ParameterSetName="email")]$EmailFrom,
 [parameter(mandatory=$true,ParameterSetName="email")]$EmailSMTPServer,
 [parameter(mandatory=$false,ParameterSetName="email")]$EmailSMTPServerPort="25",
-[parameter(mandatory=$false,ParameterSetName="email")][bool]$EmailSMTPServerSSL=$false,
+[parameter(mandatory=$false,ParameterSetName="email")][switch]$EmailSMTPServerSSL=$false,
 [parameter(mandatory=$true,ParameterSetName="email")]$EmailSubject
 )
 
