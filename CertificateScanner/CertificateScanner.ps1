@@ -1,3 +1,24 @@
+<#PSScriptInfo
+.VERSION 1.0.0.0
+.GUID 163f0d06-5bef-4d9a-bf8b-0c353b92ffc0
+.AUTHOR Faris Malaeb
+.COMPANYNAME powershellcenter.com
+.COPYRIGHT
+.TAGS SSL, Certificate, Scan
+.LICENSEURI
+.PROJECTURI https://www.powershellcenter.com/2021/12/23/sslexpirationcheck/
+.ICONURI
+.EXTERNALMODULEDEPENDENCIES 
+.REQUIREDSCRIPTS
+.EXTERNALSCRIPTDEPENDENCIES
+.RELEASENOTES
+.PRIVATEDATA
+#>
+
+<# 
+.DESCRIPTION 
+ Scan website/IP for certificate details, including Expiration date, issuer date, URL, CN, the script also can run the scan using an old protocol such as SSLv3 for old webservers. 
+#> 
 [CmdletBinding(DefaultParameterSetName='Default')]
 param(
 [parameter(mandatory=$true)]$FilePath,
