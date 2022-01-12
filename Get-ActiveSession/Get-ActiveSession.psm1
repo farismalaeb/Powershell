@@ -7,7 +7,7 @@
                    ValueFromPipelineByPropertyName=$true,
                    Position=0)]
         $Name
-
+        
 
     )
 
@@ -81,7 +81,8 @@ Function Start-PSCRemoteLogoff{
                    Position=0)]
         $Name,
         [Parameter(Mandatory=$false,ParameterSetName="SingleUser")]$TargetUser,
-        [parameter(mandatory=$false,ParameterSetName="AllUsers")][switch]$LogoffAll
+        [parameter(mandatory=$false,ParameterSetName="AllUsers")][switch]$LogoffAll,
+        [parameter(mandatory=$false,ParameterSetName="DisconnectedOnly")][switch]$DisconnectedOnly
      
 
     )
@@ -91,9 +92,7 @@ Function Start-PSCRemoteLogoff{
 
     Process{
     $ActiveSession=Get-PSCActiveSession -name $Name
-    if (!( $ActiveSession)){Write-Host "Cannot logoff remote user, Please make sure the computer name and the username is correct" -ForegroundColor Red
-                    Write-Host "The Username shouls not be assigned with any domain, just the username" -ForegroundColor Red
-                    Write-Host "If the Username and password are correct, the there maybe no active session." -ForegroundColor Red
+    if (!( $ActiveSession)){Write-Host "No Active Session found" -ForegroundColor Red
                     return
                     }
     if ($PSBoundParameters.ContainsKey("TargetUser")){       
@@ -105,7 +104,19 @@ Function Start-PSCRemoteLogoff{
             Write-Host $LogoffStatus -ForegroundColor Green
             
       }
-      Else{
+
+      if ($PSBoundParameters.ContainsKey("DisconnectedOnly")){
+        
+         $Disconnected=Get-PSCActiveSession -Name $Name | where {$_.SessionState -like "Disconnected"}
+        if (!($Disconnected)){return "No Disconnected Sessions"}
+        else{
+             ForEach($singlesession in $disconnected){logoff $singlesession.SessionID /Server:$Name /V}
+             return "Logoff for disconnected session completed"
+
+        }
+     }
+
+      if ($PSBoundParameters.ContainsKey("LogoffAll")){
        Write-Host "Logging Off All Users from $($Name)"
         foreach($RemSession in $ActiveSession){
         $RemSession
@@ -114,6 +125,8 @@ Function Start-PSCRemoteLogoff{
         }
             
     }
+
+    
 
     }
 
