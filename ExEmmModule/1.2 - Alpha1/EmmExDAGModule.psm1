@@ -82,7 +82,7 @@ Function Start-EMMDAGEnabled {
                                 $step3=Set-EMMClusterConfig -ClusterNode $ServerForMaintenance -PauseOrResume PauseThisNode}
                     }
             AddEmptylines -numberoflines 2 -MessageToIncludeAtTheEnd "Starting Exchange Database Managment" -MessageColor Yellow -ProgressState "Moving Database to another node" -ProgressPercent 70
-            switch ($PSBoundParameters['SkipDatabaseHealthCheck']){
+            switch ($PSBoundParameters.Containskey('SkipDatabaseHealthCheck')){
             $true {$Step4=Set-EMMDBActivationMoveNow -ServerName $ServerForMaintenance -TargetServerNameForManualMove $ReplacementServerFQDN -BlockMode -TimeoutBeforeManualMove 120 -SkipAllCheckForDBMove}
             $false {$Step4=Set-EMMDBActivationMoveNow -ServerName $ServerForMaintenance -TargetServerNameForManualMove $ReplacementServerFQDN -BlockMode -TimeoutBeforeManualMove 120 }
             }
@@ -93,9 +93,9 @@ Function Start-EMMDAGEnabled {
             sleep 3
             Write-Host "All Commands are completed, and below are the result...`n"-ForegroundColor Yellow
             $ExMainProgress.Add("HubTransport Draining",$Step1)
-            $ExMainProgress.Add("Queue Redirection",$step2)
+            $ExMainProgress.Add("Queue Length",$step2)
             $ExMainProgress.Add("ClusterNode",$step3)
-            $ExMainProgress.Add("Active DB Count",$step4)
+            $ExMainProgress.Add("Activation Policy",(Get-MailboxServer -Identity $PSBoundParameters['ServerForMaintenance']).DatabaseCopyAutoActivationPolicy)
             $ExMainProgress.Add("ServerWide",$step5.State)
 
         }
@@ -279,7 +279,7 @@ Process{
             Else{Write-Host "Transferring the message queue, the process will take $($TimeoutinSeconds) before timeout." 
         Write-Host "If timeout, you can run the command and set a longer TimeOutinSeconds, or wait some time and then run Get-Queue PS Command"}
 
-        Redirect-Message -Server $SourceServer -Target $ToServer -Confirm:$getFalse -ErrorAction Stop
+        Redirect-Message -Server $SourceServer -Target $ToServer -Confirm:$False -ErrorAction Stop
           
         Write-Host "Waiting for the queue to be transfer"
     Do{
@@ -337,7 +337,9 @@ Process{
     )
     }
     Catch [Microsoft.Exchange.Data.Common.LocalizedException]{
-    Write-Host "It seems that the server is not reachable or does not exist... please confirm.`n" 
+    Write-Host "It seems that the server is not reachable or does not exist... please confirm.`n" -ForegroundColor Yellow
+    Write-Host "This might be normal and safe to ignore as sometime the exchange service stop responding" -ForegroundColor Yellow
+    Write-Host "while draining the HubTransport." -ForegroundColor Yellow
     Write-Host $error[0] -ForegroundColor Red
     return
     }
@@ -493,14 +495,14 @@ Process{
 
                                                 }
                                                 Else{
-                                                    Write-Host "Activating the database, please wait"
+                                                    Write-Host "Processing Database Migration.. Please wait."
                                                     switch($PSBoundParameters['SkipAllCheckForDBMove']){
 
                                                     $true { Write-Host "Moving Databases and Ignoring all possible checks" -ForegroundColor Yellow -BackgroundColor Black
-                                                            Move-ActiveMailboxDatabase -Identity $singleDB.DatabaseName -ActivateOnServer $PSBoundParameters['TargetServerNameForManualMove']  -Confirm:$false -ErrorAction Stop -SkipAllChecks | Out-Null
+                                                           $MoveDBNow= Move-ActiveMailboxDatabase -Identity $singleDB.DatabaseName -ActivateOnServer $PSBoundParameters['TargetServerNameForManualMove']  -Confirm:$false -ErrorAction Stop -SkipAllChecks 
                                                             }
                                                     $false {Write-Host "Moving Databases with default Exchange Database check" -ForegroundColor Yellow 
-                                                            Move-ActiveMailboxDatabase -Identity $singleDB.DatabaseName -ActivateOnServer $PSBoundParameters['TargetServerNameForManualMove']  -Confirm:$false -ErrorAction Stop | Out-Null
+                                                           $MoveDBNow= Move-ActiveMailboxDatabase -Identity $singleDB.DatabaseName -ActivateOnServer $PSBoundParameters['TargetServerNameForManualMove']  -Confirm:$false -ErrorAction Stop 
                                                             }
                                                     }
                                                     
@@ -515,8 +517,7 @@ Process{
                         while(
                             @(Get-MailboxDatabaseCopyStatus -Server $PSBoundParameters['ServerName']  -ErrorAction Stop | Where{$_.Status -eq "Mounted"}).count -ne 0
                         )
-                        $DBMountedOnThisServer= @(Get-MailboxDatabaseCopyStatus -Server $PSBoundParameters['ServerName'] | Where{$_.Status -eq "Mounted"}).count
-                        return $DBMountedOnThisServer
+                        
                     }
 
                     Catch [Microsoft.Exchange.Cluster.Replay.AmDbActionWrapperException]{
@@ -739,6 +740,8 @@ Write-Host "This is due to an issue with Microsoft Snapin." -ForegroundColor Yel
 Write-Host "If you have any issue, please feel free and post it as an Issue on my GitHub"
 Write-Host "https://github.com/farismalaeb/Powershell/issues" -ForegroundColor Blue -BackgroundColor White
 
+
+
 try{
     if ((Get-PSSnapin).Name -notcontains 'microsoft.exchange.management.powershell.snapin'){
         Add-PSSnapin Microsoft.Exchange.Management.PowerShell.SnapIn -ErrorAction SilentlyContinue
@@ -749,3 +752,5 @@ Write-Warning "Ops, something went wrong, are you sure you have Exchange Powersh
 $_.exception.message
 }
 
+
+#Start-EMMDAGEnabled -ServerForMaintenance aud-mail-n2 -ReplacementServerFQDN aud-mail-n1.adcci.gov.ae 

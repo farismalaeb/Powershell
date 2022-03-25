@@ -16,7 +16,6 @@
    
 
 #> 
-Set-StrictMode -Version Latest
 Function Check-ScriptReadiness{
 param(
 $ServerName,
@@ -76,6 +75,7 @@ Function Start-EMMDAGEnabled {
                 $step2=Start-EMMRedirectMessage -SourceServer $ServerForMaintenance -ToServer $ReplacementServerFQDN -TimeoutinSeconds 0
             }
             }
+            sleep 1000
             Switch($PSBoundParameters.Containskey('IgnoreCluster')){
                         $true { AddEmptylines -numberoflines 2 -MessageToIncludeAtTheEnd "Skipping Cluster MGMT as user requests." -MessageColor Yellow -ProgressState "Skipping Cluster" -ProgressPercent 50
                                 $step3="Skipped"}
@@ -83,7 +83,7 @@ Function Start-EMMDAGEnabled {
                                 $step3=Set-EMMClusterConfig -ClusterNode $ServerForMaintenance -PauseOrResume PauseThisNode}
                     }
             AddEmptylines -numberoflines 2 -MessageToIncludeAtTheEnd "Starting Exchange Database Managment" -MessageColor Yellow -ProgressState "Moving Database to another node" -ProgressPercent 70
-            switch ($PSBoundParameters['SkipDatabaseHealthCheck']){
+            switch ($PSBoundParameters.Containskey('SkipDatabaseHealthCheck')){
             $true {$Step4=Set-EMMDBActivationMoveNow -ServerName $ServerForMaintenance -TargetServerNameForManualMove $ReplacementServerFQDN -BlockMode -TimeoutBeforeManualMove 120 -SkipAllCheckForDBMove}
             $false {$Step4=Set-EMMDBActivationMoveNow -ServerName $ServerForMaintenance -TargetServerNameForManualMove $ReplacementServerFQDN -BlockMode -TimeoutBeforeManualMove 120 }
             }
@@ -94,9 +94,9 @@ Function Start-EMMDAGEnabled {
             sleep 3
             Write-Host "All Commands are completed, and below are the result...`n"-ForegroundColor Yellow
             $ExMainProgress.Add("HubTransport Draining",$Step1)
-            $ExMainProgress.Add("Queue Redirection",$step2)
+            $ExMainProgress.Add("Queue Length",$step2)
             $ExMainProgress.Add("ClusterNode",$step3)
-            $ExMainProgress.Add("Active DB Count",$step4)
+            $ExMainProgress.Add("Activation Policy",(Get-MailboxServer -Identity $PSBoundParameters['ServerForMaintenance']).DatabaseCopyAutoActivationPolicy)
             $ExMainProgress.Add("ServerWide",$step5.State)
 
         }
@@ -494,14 +494,14 @@ Process{
 
                                                 }
                                                 Else{
-                                                    Write-Host "Activating the database, please wait"
+                                                    Write-Host "Processing Database Migration.. Please wait."
                                                     switch($PSBoundParameters['SkipAllCheckForDBMove']){
 
                                                     $true { Write-Host "Moving Databases and Ignoring all possible checks" -ForegroundColor Yellow -BackgroundColor Black
-                                                            Move-ActiveMailboxDatabase -Identity $singleDB.DatabaseName -ActivateOnServer $PSBoundParameters['TargetServerNameForManualMove']  -Confirm:$false -ErrorAction Stop -SkipAllChecks | Out-Null
+                                                           $MoveDBNow= Move-ActiveMailboxDatabase -Identity $singleDB.DatabaseName -ActivateOnServer $PSBoundParameters['TargetServerNameForManualMove']  -Confirm:$false -ErrorAction Stop -SkipAllChecks 
                                                             }
                                                     $false {Write-Host "Moving Databases with default Exchange Database check" -ForegroundColor Yellow 
-                                                            Move-ActiveMailboxDatabase -Identity $singleDB.DatabaseName -ActivateOnServer $PSBoundParameters['TargetServerNameForManualMove']  -Confirm:$false -ErrorAction Stop | Out-Null
+                                                           $MoveDBNow= Move-ActiveMailboxDatabase -Identity $singleDB.DatabaseName -ActivateOnServer $PSBoundParameters['TargetServerNameForManualMove']  -Confirm:$false -ErrorAction Stop 
                                                             }
                                                     }
                                                     
@@ -516,8 +516,7 @@ Process{
                         while(
                             @(Get-MailboxDatabaseCopyStatus -Server $PSBoundParameters['ServerName']  -ErrorAction Stop | Where{$_.Status -eq "Mounted"}).count -ne 0
                         )
-                        $DBMountedOnThisServer= @(Get-MailboxDatabaseCopyStatus -Server $PSBoundParameters['ServerName'] | Where{$_.Status -eq "Mounted"}).count
-                        return $DBMountedOnThisServer
+                        
                     }
 
                     Catch [Microsoft.Exchange.Cluster.Replay.AmDbActionWrapperException]{
@@ -577,7 +576,6 @@ param(
    Write-Host "This process will check the server readiness"
    Write-Host "There will be no move or any change to the environment, just a check"
    
-    try{
     Test-Connection -ComputerName $SourceServer -ErrorAction stop -Count 1
        AddEmptylines -numberoflines 1 -MessageToIncludeAtTheEnd "Testing Exchange Ports reachability, Checking Port 80..." -MessageColor White
         (Get-ExchangeServer).foreach{$Port80Test=Test-NetConnection -ComputerName $_.name -Port 80
@@ -640,6 +638,10 @@ param(
                     Write-Host "The HighAvailability State of $($_.ServerFqdn) is: " -NoNewline; Write-Host $_.State -ForegroundColor RED}
                     }
             }
+            switch ($PSBoundParameters["IgnoreCluster"]){
+            $true {Write-Host "Skipping Cluster check..." -ForegroundColor Yellow }
+            $false {Write-Host "Starting Cluster Check..." -ForegroundColor Yellow}
+            }
 
         if (!($PSBoundParameters["IgnoreCluster"])){
           $Status=Get-Cluster (Get-DatabaseAvailabilityGroup)| Get-ClusterNode
@@ -650,7 +652,7 @@ param(
                 Else{
                 Write-Host "Active Cluster Nodes are: " -NoNewline ;Write-Host $($Status | where {$_.state -like "Up"}).count -ForegroundColor Green
                 Write-Host "Unstable Cluster Nodes are: " -NoNewline
-                $NotUpCluster=($Status | where {$_.state -notlike "Up"}).count
+                $NotUpCluster=@($Status | where {$_.state -notlike "Up"}).count
                     switch ($NotUpCluster)
                     {
                         '0' {Write-Host "0" -ForegroundColor Green}
@@ -677,7 +679,7 @@ param(
             }
 
                AddEmptylines -numberoflines 1 -MessageToIncludeAtTheEnd "Checking Exchange Servers for Activating Policy" -MessageColor White
-        if (($DBSetting | where {($_.DatabaseCopyActivationDisabledAndMoveNow -notlike $true) -and ($_.name -notlike $SourceServer)}).count -eq 0){
+        if (@($DBSetting | where {($_.DatabaseCopyActivationDisabledAndMoveNow -notlike $true) -and ($_.name -notlike $SourceServer)}).count -eq 0){
             Write-Warning "There is no available server with an Activation Policy set to Unrestricted or IntrasiteOnly" 
             Write-Warning "Please ensure that there is at least one server available to handle the load..."
             $DBSetting | select name,DatabaseCopyAutoActivationPolicy,DatabaseCopyActivationDisabledAndMoveNow
@@ -720,13 +722,7 @@ param(
         Write-Host "Testing Replication Health"
         get-exchangeserver | Test-ReplicationHealth | ft -AutoSize
 
-        }
-        catch  {
-        
-        write-host $Error[0]  -ForegroundColor Red
-        write-host "Testing Failed, Please make sure you type the correct computer name, and NetConnect is active" -ForegroundColor Red
 
-        }
     }
     End{
     Write-Host "Process is completed.."
@@ -743,6 +739,8 @@ Write-Host "This is due to an issue with Microsoft Snapin." -ForegroundColor Yel
 Write-Host "If you have any issue, please feel free and post it as an Issue on my GitHub"
 Write-Host "https://github.com/farismalaeb/Powershell/issues" -ForegroundColor Blue -BackgroundColor White
 
+
+
 try{
     if ((Get-PSSnapin).Name -notcontains 'microsoft.exchange.management.powershell.snapin'){
         Add-PSSnapin Microsoft.Exchange.Management.PowerShell.SnapIn -ErrorAction SilentlyContinue
@@ -753,3 +751,5 @@ Write-Warning "Ops, something went wrong, are you sure you have Exchange Powersh
 $_.exception.message
 }
 
+
+#Start-EMMDAGEnabled -ServerForMaintenance aud-mail-n2 -ReplacementServerFQDN aud-mail-n1.adcci.gov.ae 
