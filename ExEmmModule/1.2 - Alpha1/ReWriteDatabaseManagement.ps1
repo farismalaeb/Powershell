@@ -60,10 +60,9 @@ Function Set-XEMMDBActivationMoveNow{
                                 $i++
                                 sleep 1
                                     if ($i -ge $PSBoundParameters['TimeoutBeforeManualMove']){
-                                        Write-Host "The Number of the databases on this node are: "-NoNewline 
                                         $DBOnServer=Get-MailboxDatabaseCopyStatus -Server $PSBoundParameters['ServerName'] -ErrorAction stop| Where{$_.Status -eq "Mounted"}
                                           foreach ($singleDB in $DBOnServer){ # Checking Queue length 
-                                            Write-Host "Processing $($singleDB)" -ForegroundColor Green 
+                                            Write-Host "Processing" $($singleDB).DatabaseName -ForegroundColor Green 
                                                 $DBOnRemoteServerQL=Get-MailboxDatabase $singleDB.DatabaseName | Get-MailboxDatabaseCopyStatus -ErrorAction Stop | where {($_.databasename -like $singleDB.DatabaseName) -and ($_.MailboxServer -notlike $PSBoundParameters['ServerName'])}
                                                 $TotalQueueLength =$(($DBOnRemoteServerQL.copyQueuelength | Measure-Object -Sum).Sum) +$(($DBOnRemoteServerQL.ReplayQueueLength | Measure-Object -Sum).Sum)
                                                     if ($TotalQueueLength -gt 0){
@@ -81,19 +80,15 @@ Function Set-XEMMDBActivationMoveNow{
     
                                                     }
                                                     Else{
-                                                        Write-Host "Processing Database Migration.. Please wait."
                                                         switch($PSBoundParameters.ContainsKey('SkipValidation')){
     
-                                                        $true { Write-Host "Moving Databases and Ignoring all possible checks" -ForegroundColor Yellow -BackgroundColor Black
-                                                                $MoveDBNow= Move-ActiveMailboxDatabase -Identity $singleDB.DatabaseName -Confirm:$false -ErrorAction Stop -SkipClientExperienceChecks -SkipCpuChecks -SkipMaximumActiveDatabasesChecks -MoveComment "EMM Module"  -SkipMoveSuppressionChecks 
+                                                        $true {$MoveDBNow= Move-ActiveMailboxDatabase -Identity $singleDB.DatabaseName -Confirm:$false -ErrorAction Stop -SkipClientExperienceChecks -SkipCpuChecks -SkipMaximumActiveDatabasesChecks -MoveComment "EMM Module"  -SkipMoveSuppressionChecks 
                                                                 }
-                                                        $false {Write-Host "Moving Databases with default Exchange Database check" -ForegroundColor Yellow 
-                                                              
-                                                               $MoveDBNow= Move-ActiveMailboxDatabase -Identity $singleDB.DatabaseName -Confirm:$false -ErrorAction Stop 
+                                                        $false {$MoveDBNow= Move-ActiveMailboxDatabase -Identity $singleDB.DatabaseName -Confirm:$false -ErrorAction Stop 
                                                                 }
                                                         }
                                                         Write-Host "Database $($singleDB.DatabaseName) is now hosted on " -NoNewline 
-                                                        Write-Host $(Get-MailboxDatabase | Get-MailboxDatabaseCopyStatus | where {($_.databasename -like $singleDB.DatabaseName) -and ($_.status -like "mounted")}) -ForegroundColor Green
+                                                        Write-Host $(Get-MailboxDatabase | Get-MailboxDatabaseCopyStatus | where {($_.databasename -like $singleDB.DatabaseName) -and ($_.status -like "mounted")}).MailboxServer -ForegroundColor Green
                                                         sleep -Seconds 1
                                                     }
                                                 }                                  
