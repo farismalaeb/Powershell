@@ -1,22 +1,13 @@
 ﻿    Set-StrictMode -Version latest 
 Function Set-XEMMDBActivationMoveNow{
-    [cmdletbinding(DefaultParameterSetName="ActiveOff")]
+    [cmdletbinding()]
     Param(
-    [parameter(mandatory=$true,
-                ValueFromPipeline=$true,
-                ParameterSetName="ActiveOff",
-                Position=0)]
     [parameter(Mandatory=$true,
-               ParameterSetName="ActiveOn",
-               ValueFromPipeline=$true,
-                Position=0)]
-    [parameter(Mandatory=$true,
-                ParameterSetName="ActiveOnSingle",
-                ValueFromPipeline=$true,
+                 ValueFromPipeline=$true,
                  Position=0)]
                  $ServerName,
     [parameter(mandatory=$True)][validateset("IntrasiteOnly","Unrestricted","BlockMode")]$ActivationMode,
-    [parameter(mandatory=$false,ParameterSetName="ActiveOn")]$TimeoutBeforeManualMove=120,
+    [parameter(mandatory=$false)]$TimeoutBeforeManualMove=120,
     [parameter(mandatory=$false)][switch]$SkipValidation
     
     )
@@ -108,6 +99,12 @@ Function Set-XEMMDBActivationMoveNow{
                         Write-Host "Or the database has been already activated on the remote server."
                         Write-Host $_.exception.message
                         return "Require review, Please Run Get-MailboxDatabaseCopyStatus and also run the Test-EMMReadiness cmdlet to confirm the readiness"
+                        }
+                        catch [Microsoft.Exchange.Cluster.Replay.AmDbMoveMoveSuppressedException]{
+                        Write-Host "`nIt seems that there are multiple move request for this database" -ForegroundColor Red
+                        Write-Host $_.exception.message -ForegroundColor Red
+                        Write-Host "To ignore the error and move the database, use the following paramter " -NoNewline -ForegroundColor white
+                        Write-Host "-SkipValidation" -ForegroundColor Green
                         }
                         catch{
                         Write-Warning $_.exception.message
