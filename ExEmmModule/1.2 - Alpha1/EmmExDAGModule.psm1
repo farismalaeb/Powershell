@@ -69,10 +69,10 @@ Function Start-EMMDAGEnabled {
             AddEmptylines -numberoflines 1 -MessageToIncludeAtTheEnd "Will Now Check Queue Service Readiness" -MessageColor Yellow -ProgressState "Turnning Off HubTransport Activities..." -ProgressPercent 15
             switch ($PSBoundParameters.Containskey('IgnoreQueue')){
             $true {write-host "Queue Check... Skipped";$step2="Message Transfer Skipped with Queue Check"}
-            $false{$checkQReady=QueueFailure -ServernameToCheck $ServerForMaintenance
+            $false{
                 AddEmptylines -numberoflines 2 -MessageToIncludeAtTheEnd "Message Redirection Process will Start" -MessageColor Yellow -ProgressState "Redirecting Messages..." -ProgressPercent 25 
                 AddEmptylines -numberoflines 1 -MessageToIncludeAtTheEnd "This might take few minuts, Please wait.." -MessageColor Yellow 
-                $step2=Start-EMMRedirectMessage -SourceServer $ServerForMaintenance -ToServer $ReplacementServerFQDN -TimeoutinSeconds 0
+                $step2=Start-EMMRedirectMessage -SourceServer $ServerForMaintenance -ToServer $ReplacementServerFQDN
             }
             }
             Switch($PSBoundParameters.Containskey('IgnoreCluster')){
@@ -129,40 +129,6 @@ param(
     Write-Progress -Activity $PSBoundParameters['MessageToIncludeAtTheEnd'] -Status $PSBoundParameters['ProgressState'] -PercentComplete $PSBoundParameters['ProgressPercent']
     }
     
-}
-
-
-
-Function QueueFailure{
-param(
-$ServernameToCheck)
-    $global:FailorNot=0
-    $timer=0
-    Write-Host "Waiting for Queue Refreshing, Please wait, this might take up to 2 Minuts."
-        while ($timer -ne 60)
-        {
-            Trap { 
-                Write-Host "." -NoNewline -ForegroundColor Yellow 
-                $global:FailorNot=1
-                continue
-            }
-        sleep 1
-
-        if ((Get-Queue -Server $PSBoundParameters['$ServernameToCheck'] -ErrorAction stop | where {$_.DeliveryType -notlike "Shadow*"}) -and ($global:FailorNot -eq 1)){
-             
-              Return "Queue Refreshed" 
-        }
-
-        if ((Get-Queue -Server $PSBoundParameters['$ServernameToCheck'] -ErrorAction stop | where {$_.DeliveryType -notlike "Shadow*"}) -and ($FailorNot -eq 0)){
-            Write-Host "." -ForegroundColor Green -NoNewline 
-        }
-
-          $timer++
-
-        }
-        Return "Not Completed"
-
-
 }
 
 Function Stop-EMMDAGEnabled {
@@ -259,105 +225,33 @@ Export-ModuleMember Set-EMMHubTransportState
 Function Start-EMMRedirectMessage{
 param(
 [parameter(mandatory=$True,ValueFromPipeline=$true,Position=0)]$SourceServer,
-[parameter(mandatory=$False,DontShow)][int]$TimeoutinSeconds=180,
 [parameter(mandatory=$True)][ValidatePattern("(?=^.{1,254}$)(^(?:(?!\d+\.|-)[a-zA-Z0-9_\-]{1,63}(?<!-)\.?)+(?:[a-zA-Z]{2,})$)")][string]$ToServer
 )
-        
-begin{
-
-if ($Global:ScriptScope -notlike $true){$TimeoutinSeconds=0
-
-} #the TimeoutinSeconds is only usefull when the Start-Emm is used, otherwise it should be disabled.
-}
-Process{
-
-    
-    try {
         $counter=0
-        Write-Host "`nRedirecting queued messages from $($SourceServer) to $($ToServer) process has started..."
-        if ($TimeoutinSeconds -eq 0){Write-Host "Transferring the message queue, the process will finish once all the queue is transferred..."}
-            Else{Write-Host "Transferring the message queue, the process will take $($TimeoutinSeconds) before timeout." 
-        Write-Host "If timeout, you can run the command and set a longer TimeOutinSeconds, or wait some time and then run Get-Queue PS Command"}
-
-        Redirect-Message -Server $SourceServer -Target $ToServer -Confirm:$False -ErrorAction Stop
-          
-        Write-Host "Waiting for the queue to be transfer"
-    Do{
-
-        Start-Sleep -Seconds 1 
-        $counter++
-        switch ($TimeoutinSeconds)
-        {
-            '0' {}
-            {$_ -gt 0} {Write-Host "." -NoNewline}
-            }
-
-        #region TimeOut
-            if (($Counter -ge $TimeoutinSeconds) -and ($TimeoutinSeconds -ne 0)){
-                Write-Host "Process is Timeout"
-                Write-Host "Currently there are $((Get-Queue -server $SourceServer | where {$_.DeliveryType -notlike "Shadow*"}| select Messagecount | Measure-Object -Sum -Property MessageCount).Sum) "-NoNewline
-                Write-Host "in the queue, the number should be Zero"
-                Write-Host "Queue Transfer fail to complete, Maybe a slow connection or very heavy queue pending"
-                Write-Host "You can run the command " -NoNewline
-                Write-host "Start-EMMRedirectMessage -SourceServer $($SourceServer) -ToServer $($toserver) -TimeoutinSeconds 0" -ForegroundColor Yellow
-                if ($Global:ScriptScope -like $True){
-                Write-Host "Do you want to continue placing the server in Maintenance Mode or you want to abort the process?" -ForegroundColor Yellow
+   Write-Host "Redirecting the Queue..."
+             Redirect-Message -Server $PSBoundParameters['SourceServer'] -Target $PSBoundParameters['ToServer'] -Confirm:$False -ErrorAction Stop
+             Sleep -Seconds 10
+             Write-Host "Queue redirection completed..."
+             do
+             {
+               Write-Host "."   -NoNewline
+               $QL=(Get-Queue -server aud-mail-n2 | where {($_.DeliveryType -notlike "Shadow*") -and ($_.DeliveryType -notlike "Undefined") }| select Messagecount | Measure-Object -Sum -Property MessageCount).Sum
+               if ($ql -eq 0){return "Queue Transfer successfully"}
+               Start-Sleep -Seconds 1
+               $counter++
+               if ($counter -eq 60){
+                Write-Host "Queue Transfer was not completed"
+                Write-Host "The Number of remaining Queue is" $($QL)
                 $YesNo=Read-Host "Press Y to continue or any other key to abort the process"
                     if ($YesNo -like "Y"){return "Queue Transfer is not completed, But the user accepted it"}
                     else{
-                    return "Aborted"
+                    Throw "User Aborted Queue Transfar.."
                     }
-                    
-                  
-                        }
-                Else{
-                return "Aborted"
+                }
+             }
+             while ($ql -gt 0)
 
-                }
-         #endregion Timeout
-
-                }
-                if ($TimeoutinSeconds -eq 0){
-                $QLength=(Get-Queue -server $SourceServer  -ErrorAction Ignore | where {$_.DeliveryType -notlike "Shadow*"}| select Messagecount | Measure-Object -Sum -Property MessageCount).Sum
-                if ($counter -eq 30){Write-Host "It's OK, I am still waiting for the transfer, this might take up to 2 minutes, Please wait..."}
-                if ($counter -eq 60){Write-Host "This is boring, Yes?!, Anyway, let's wait a bit more..."}
-                if ($counter -eq 90){Write-Host "Same as you, i am waiting for the Exchange process to complete.."}
-                if ($counter -eq 120){Write-Host "Lets get a cup of coffee and come back..."}
-                if ($counter -eq 250){Write-Host "Maybe you need to restart the operation again, if you like press CTRL+C and start the command again, or just wait.."}
-                Write-Host "The Current Queue size is " -NoNewline
-                Write-Host $QLength -ForegroundColor Green
-                if ($QLength -eq 0){
-                return "All Transfer and OK"
-                }
-
-                }
-    }
-    while (
-    (Get-Queue -server $SourceServer -ErrorAction Ignore | where {$_.DeliveryType -notlike "Shadow*"}| select Messagecount | Measure-Object -Sum -Property MessageCount).Sum -ne 0
-    )
-    }
-    Catch [Microsoft.Exchange.Data.Common.LocalizedException]{
-    Write-Host "It seems that the server is not reachable or does not exist... please confirm.`n" -ForegroundColor Yellow
-    Write-Host "This might be normal and safe to ignore as sometime the exchange service stop responding" -ForegroundColor Yellow
-    Write-Host "while draining the HubTransport." -ForegroundColor Yellow
-    Write-Host $error[0] -ForegroundColor Red
-    return
-    }
-    Catch{
-    Write-Host $Error[0] -ForegroundColor Red
-    Write-Host ""
-    $FailedYesNo=Read-Host "The Operation Failed, Do you want to continue?"
-                   if ($FailedYesNo -like "Y"){return "Operation Failed, But the user accepted it"}
-                    else{
-                        Break
-                        }
-            
-    }
-}
-End{
-   
-    }
-}
+        }
 
 Export-ModuleMember Start-EMMRedirectMessage
 
