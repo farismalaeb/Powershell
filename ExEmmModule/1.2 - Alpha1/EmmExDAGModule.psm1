@@ -57,7 +57,7 @@ Function Start-EMMDAGEnabled {
             }
         [hashtable]$ExMainProgress=[ordered]@{}
         if ($PSBoundParameters.ContainsKey('SkipDatabaseHealthCheck')){
-        AddEmptylines -numberoflines 1 -MessageToIncludeAtTheEnd "DB Health check will be ignored as the -SkipDatabaseHealthCheck is selected.`nIts a recommended to use this option in production environment."
+        AddEmptylines -numberoflines 1 -MessageToIncludeAtTheEnd "DB Health check will be ignored as the -SkipDatabaseHealthCheck is selected.`nIts a recommended to use this option in production environment." -MessageColor White
         Write-Host "Please check the online manual and ensure to follow the best practices"
         }
         }
@@ -93,7 +93,7 @@ Function Start-EMMDAGEnabled {
             Start-Sleep 3
             Write-Host "All Commands are completed, and below are the result...`n"-ForegroundColor Yellow
             $ExMainProgress.Add("HubTransport Draining",$Step1)
-            $ExMainProgress.Add("Queue Length Status",$step2)
+            $ExMainProgress.Add("Queue Length Status",(Get-Queue -server $PSBoundParameters['ServerForMaintenance'] | Where-Object {($_.DeliveryType -notlike "Shadow*") -and ($_.DeliveryType -notlike "Undefined") }| Select-Object Messagecount | Measure-Object -Sum -Property MessageCount).Sum)
             $ExMainProgress.Add("Cluster Node",$step3)
             $ExMainProgress.Add("Activation Policy",(Get-MailboxServer -Identity $PSBoundParameters['ServerForMaintenance']).DatabaseCopyAutoActivationPolicy)
             $ExMainProgress.Add("ServerWide",$step5.State)
@@ -153,7 +153,8 @@ Function Stop-EMMDAGEnabled {
                 $true {write-host "Cluster Config are Skipped";$outstep1="Skipped"}
                 $false {$outstep1=Set-EMMClusterConfig -ClusterNode $PSBoundParameters['ServerInMaintenance'] -PauseOrResume ResumeThisNode}
             }
-            $outStep2=Set-EMMDBActivationMoveNow -ServerName $PSBoundParameters['ServerInMaintenance'] -ActivationMode $PSBoundParameters['ServerActivationMode']
+
+            $outStep2=Set-EMMDBActivationMoveNow -ServerName $PSBoundParameters['ServerInMaintenance'] -ActivationMode $ServerActivationMode
             AddEmptylines -numberoflines 2 -MessageToIncludeAtTheEnd "Enabling HubTransport Components..." -MessageColor Yellow -ProgressState "Enabling HubTransport..." -ProgressPercent 60
             $outStep3=Set-EMMHubTransportState -Servername $PSBoundParameters['ServerInMaintenance'] -Status Active
             AddEmptylines -numberoflines 2 -MessageToIncludeAtTheEnd "Enabling Exchange Server Components..." -MessageColor Yellow -ProgressState "All should be done, below are the result, Make sure that there is no failure or other issues" -ProgressPercent 90
@@ -230,7 +231,7 @@ param(
              do
              {
                Write-Host "."   -NoNewline
-               $QL=(Get-Queue -server aud-mail-n2 | Where-Object {($_.DeliveryType -notlike "Shadow*") -and ($_.DeliveryType -notlike "Undefined") }| Select-Object Messagecount | Measure-Object -Sum -Property MessageCount).Sum
+               $QL=(Get-Queue -server $PSBoundParameters['SourceServer'] | Where-Object {($_.DeliveryType -notlike "Shadow*") -and ($_.DeliveryType -notlike "Undefined") }| Select-Object Messagecount | Measure-Object -Sum -Property MessageCount).Sum
                if ($ql -eq 0){return "Queue Transfer successfully"}
                Start-Sleep -Seconds 1
                $counter++
