@@ -618,11 +618,8 @@ Write-Host "Please Give me a moment to load Exchange Snapin...." -ForegroundColo
 Write-Host "One more tip: Run this Module using RunAsAdministrator " -ForegroundColor Green
 Write-Host "If you unload the EmmExDAGModule Module using Remove-Module cmdlet, you need to close the PowerShell Window and start it again" -ForegroundColor Yellow
 Write-Host "This is due to an issue with Microsoft Snapin." -ForegroundColor Yellow
-Write-Host "If you have any issue, please feel free and post it as an Issue on my GitHub"
+Write-Host "If you have any issue or idea request, please feel free and post it as an Issue on my GitHub or keep it a comment on the Module home page"
 Write-Host "https://github.com/farismalaeb/Powershell/issues" -ForegroundColor Blue -BackgroundColor White
-
-
-
 
 try{
     if ((Get-PSSnapin).Name -notcontains 'microsoft.exchange.management.powershell.snapin'){
