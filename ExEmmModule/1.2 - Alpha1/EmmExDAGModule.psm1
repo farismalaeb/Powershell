@@ -67,11 +67,11 @@ Function Start-EMMDAGEnabled {
             $Step1=Set-EMMHubTransportState -Servername $PSBoundParameters['ServerForMaintenance'] -Status Draining
             AddEmptylines -numberoflines 1 -MessageToIncludeAtTheEnd "Will Now Check Queue Service Readiness" -MessageColor Yellow -ProgressState "Turnning Off HubTransport Activities..." -ProgressPercent 15
             switch ($PSBoundParameters.Containskey('IgnoreQueue')){
-            $true {write-host "Queue Check... Skipped";$step2="Message Transfer Skipped with Queue Check"}
+            $true {write-host "Queue Check... Skipped"}
             $false{
                 AddEmptylines -numberoflines 2 -MessageToIncludeAtTheEnd "Message Redirection Process will Start" -MessageColor Yellow -ProgressState "Redirecting Messages..." -ProgressPercent 25 
                 AddEmptylines -numberoflines 1 -MessageToIncludeAtTheEnd "This might take few minuts, Please wait.." -MessageColor Yellow 
-                $step2=Start-EMMRedirectMessage -SourceServer $PSBoundParameters['ServerForMaintenance'] -ToServer $PSBoundParameters['ReplacementServerFQDN']
+                Start-EMMRedirectMessage -SourceServer $PSBoundParameters['ServerForMaintenance'] -ToServer $PSBoundParameters['ReplacementServerFQDN'] 
             }
             }
             Switch($PSBoundParameters.Containskey('IgnoreCluster')){
@@ -82,11 +82,12 @@ Function Start-EMMDAGEnabled {
                     }
             AddEmptylines -numberoflines 2 -MessageToIncludeAtTheEnd "Starting Exchange Database Managment" -MessageColor Yellow -ProgressState "Moving Database to another node" -ProgressPercent 70
             switch ($PSBoundParameters.Containskey('SkipDatabaseHealthCheck')){
-            ####### ERROR
+
             $true {Set-EMMDBActivationMoveNow -ServerName $PSBoundParameters['ServerForMaintenance'] -ActivationMode BlockMode -TimeoutBeforeManualMove 120 -SkipValidation}
             $false {Set-EMMDBActivationMoveNow -ServerName $PSBoundParameters['ServerForMaintenance'] -ActivationMode BlockMode -TimeoutBeforeManualMove 120  }
             }
-            
+            AddEmptylines -numberoflines 2 -MessageToIncludeAtTheEnd "Checking Queue Transfar if its completed or not." -MessageColor Yellow -ProgressState "Reading Queue Value" -ProgressPercent 72
+            Start-EMMRedirectMessage -SourceServer $PSBoundParameters['ServerForMaintenance'] -ToServer $PSBoundParameters['ReplacementServerFQDN'] -CheckOnly
             AddEmptylines -numberoflines 2 -MessageToIncludeAtTheEnd "Switching ServerComponentState ServerWideOffline to Off" -MessageColor Yellow -ProgressState "Updating ServerWideOffline" -ProgressPercent 95
             Set-ServerComponentState $PSBoundParameters['ServerForMaintenance'] -Component ServerWideOffline -State Inactive -Requester Maintenance -ErrorAction Stop
             $step5=get-ServerComponentState $PSBoundParameters['ServerForMaintenance'] -Component ServerWideOffline
@@ -221,33 +222,55 @@ Param(
 Function Start-EMMRedirectMessage{
 param(
 [parameter(mandatory=$True,ValueFromPipeline=$true,Position=0)]$SourceServer,
-[parameter(mandatory=$True)][ValidatePattern("(?=^.{1,254}$)(^(?:(?!\d+\.|-)[a-zA-Z0-9_\-]{1,63}(?<!-)\.?)+(?:[a-zA-Z]{2,})$)")][string]$ToServer
+[parameter(mandatory=$True)][ValidatePattern("(?=^.{1,254}$)(^(?:(?!\d+\.|-)[a-zA-Z0-9_\-]{1,63}(?<!-)\.?)+(?:[a-zA-Z]{2,})$)")][string]$ToServer,
+[parameter(mandatory=$False,ValueFromPipeline=$true,Position=0)][switch]$CheckOnly
 )
+
         $counter=0
-   Write-Host "Redirecting the Queue, Minimum waiting time is 15 seconds..."
-             Redirect-Message -Server $PSBoundParameters['SourceServer'] -Target $PSBoundParameters['ToServer'] -Confirm:$False -ErrorAction Stop
-             Start-Sleep -Seconds 10
-             Write-Host "Queue redirection completed..."
-             do
-             {
-               Write-Host "."   -NoNewline
-               $QL=(Get-Queue -server $PSBoundParameters['SourceServer'] | Where-Object {($_.DeliveryType -notlike "Shadow*") -and ($_.DeliveryType -notlike "Undefined") }| Select-Object Messagecount | Measure-Object -Sum -Property MessageCount).Sum
-               if ($ql -eq 0){return "Queue Transfer successfully"}
-               Start-Sleep -Seconds 1
-               $counter++
-               if ($counter -eq 60){
-                Write-Host "Queue Transfer was not completed"
-                Write-Host "The Number of remaining Queue is" $($QL)
-                $YesNo=Read-Host "Press Y to continue or any other key to abort the process"
-                    if ($YesNo -like "Y"){return "Queue Transfer is not completed, But the user accepted it"}
-                    else{
-                    Throw "User Aborted Queue Transfar.."
-                    }
+
+        switch ($PSBoundParameters.ContainsKey('CheckOnly')) {
+              $False {
+                Write-Host "Redirecting the Queue..."
+                try{
+                Redirect-Message -Server $PSBoundParameters['SourceServer'] -Target $PSBoundParameters['ToServer'] -Confirm:$False -ErrorAction Stop
+                AddEmptylines -numberoflines 1 -MessageToIncludeAtTheEnd "Queue Transfar request sent.. will check the details later" -MessageColor Yellow
                 }
-             }
-             while ($ql -gt 0)
+                Catch{
+
+                    $_.Exception.Message
+                }
+
+              }  
+              $True {
+                Write-Host "Checking Queue Value, and waiting for it to be 0, the timeout for this process is 60 second, Please wait."
+                do
+                {
+                    Trap { 
+                        Write-Host "." -NoNewline -ForegroundColor Yellow 
+                        continue
+                    }
+                 
+                  $QL=(Get-Queue -server $PSBoundParameters['SourceServer'] -ErrorAction stop   | Where-Object {($_.DeliveryType -notlike "Shadow*") -and ($_.DeliveryType -notlike "Undefined") }| Select-Object Messagecount | Measure-Object -Sum -Property MessageCount).Sum
+                  if ($ql -eq 0){return "Queue Transfer successfully"}
+                  Start-Sleep -Seconds 1
+                  $counter++
+                  if ($counter -eq 60){
+                   Write-Host "Queue Transfer was not completed"
+                   Write-Host "The Number of remaining Queue is" $($QL)
+                   $YesNo=Read-Host "Press Y to continue or any other key to abort the process"
+                       if ($YesNo -like "Y"){return "Queue Transfer is not completed, But the user accepted it"}
+                       else{
+                       Throw "User Aborted Queue Transfar.."
+                       }
+                   }
+                }
+                while ($ql -gt 0)
+              }
 
         }
+
+        }
+Export-ModuleMember Start-EMMRedirectMessage
 
 Function Set-EMMClusterConfig {
 Param(
