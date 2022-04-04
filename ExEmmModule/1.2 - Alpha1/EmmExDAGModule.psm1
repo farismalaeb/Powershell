@@ -79,12 +79,10 @@ Function Start-EMMDAGEnabled {
             $true {Set-EMMDBActivationMoveNow -ServerName $PSBoundParameters['ServerForMaintenance'] -ActivationMode BlockMode -TimeoutBeforeManualMove 120 -SkipValidation}
             $false {Set-EMMDBActivationMoveNow -ServerName $PSBoundParameters['ServerForMaintenance'] -ActivationMode BlockMode -TimeoutBeforeManualMove 120  }
             }
-            AddEmptylines -numberoflines 2 -MessageToIncludeAtTheEnd "Checking Queue Transfar if its completed or not." -MessageColor Yellow -ProgressState "Reading Queue Value" -ProgressPercent 72
             switch ($PSBoundParameters.Containskey('IgnoreQueue')){
                 $true {write-host "Queue Check... Skipped"}
                 $false{
-                    AddEmptylines -numberoflines 2 -MessageToIncludeAtTheEnd "Message Redirection Process will Start" -MessageColor Yellow -ProgressState "Redirecting Messages..." -ProgressPercent 25 
-                    AddEmptylines -numberoflines 1 -MessageToIncludeAtTheEnd "This might take few minuts, Please wait.." -MessageColor Yellow 
+                    AddEmptylines -numberoflines 2 -MessageToIncludeAtTheEnd "Message Redirection Process will Start, expected time to finish is 60 seconds." -MessageColor Yellow -ProgressState "Redirecting Messages..." -ProgressPercent 25 
                     Start-EMMRedirectMessage -SourceServer $PSBoundParameters['ServerForMaintenance'] -ToServer $PSBoundParameters['ReplacementServerFQDN'] -CheckOnly
                     Start-EMMRedirectMessage -SourceServer $PSBoundParameters['ServerForMaintenance'] -ToServer $PSBoundParameters['ReplacementServerFQDN'] 
                 }
@@ -220,6 +218,37 @@ Param(
     
 }
 
+Function QueueFailure{
+param(
+$ServernameToCheck)
+    $timer=0
+    Write-Host "Waiting for Queue Refreshing, Please wait, this might take up to 2 Minuts."
+        while ($timer -ne 120)
+        {
+            Trap { 
+                Write-Host "." -NoNewline -ForegroundColor Yellow 
+                $global:FailorNot=1
+                continue
+            }
+        sleep 1
+
+        if ((Get-Queue -server $PSBoundParameters['ServernameToCheck'] -ErrorAction stop   | Where-Object {($_.DeliveryType -notlike "Shadow*") -and ($_.DeliveryType -notlike "Undefined") }| Select-Object Messagecount | Measure-Object -Sum -Property MessageCount).Sum -eq 0){
+             
+              Return "Queue Redirection Sent" 
+        }
+
+        if ((Get-Queue -server $PSBoundParameters['ServernameToCheck'] -ErrorAction stop   | Where-Object {($_.DeliveryType -notlike "Shadow*") -and ($_.DeliveryType -notlike "Undefined") }| Select-Object Messagecount | Measure-Object -Sum -Property MessageCount).Sum -gt 0){
+            Write-Host "." -ForegroundColor Green -NoNewline 
+        }
+
+          $timer++
+
+        }
+        Return "Not Completed"
+
+
+}
+
 Function Start-EMMRedirectMessage{
 param(
 [parameter(mandatory=$True,ValueFromPipeline=$true,Position=0)]$SourceServer,
@@ -244,6 +273,7 @@ param(
               }  
               $True {
                 Write-Host "Checking Queue Value, and waiting for it to be 0, the timeout for this process is 60 second, Please wait."
+                
                 do
                 {
                     Trap { 
@@ -483,11 +513,11 @@ param(
 )
 
    Process{
-   Write-Host "This process will check the server readiness"
-   Write-Host "There will be no move or any change to the environment, just a check"
+   Write-Host "This process will check the server readiness" -ForegroundColor Yellow
+   Write-Host "There will be no move or any change to the environment, just a check" -ForegroundColor Yellow 
    $EXServers=Get-ExchangeServer
 
-        AddEmptylines -numberoflines 1 -MessageToIncludeAtTheEnd "Testing Exchange Services Ports reachability, Checking Port 80..." -MessageColor White
+        AddEmptylines -numberoflines 1 -MessageToIncludeAtTheEnd "Testing Exchange Services Ports reachability, Checking Port 80..." -MessageColor Yellow
         ($EXServers).foreach{$Port80Test=Test-NetConnection -ComputerName $_.name -Port 80
             if ($Port80Test.TcpTestSucceeded -like $True){
                 Write-Host $($_.name) -ForegroundColor Green -NoNewline;Write-Host " is reachable on Port 80"
@@ -497,7 +527,7 @@ param(
                 }
                                     }
         
-        AddEmptylines -numberoflines 1 -MessageToIncludeAtTheEnd "Testing Exchange Ports reachability, Checking Port 443..." -MessageColor White
+        AddEmptylines -numberoflines 1 -MessageToIncludeAtTheEnd "Testing Exchange Ports reachability, Checking Port 443..." -MessageColor Yellow
         ($EXServers).foreach{$Port443Test=Test-NetConnection -ComputerName $_.name -Port 443
             if ($Port443Test.TcpTestSucceeded -like $True){
                 Write-Host $($_.name) -ForegroundColor Green -NoNewline;Write-Host " is reachable on Port 443"
@@ -507,7 +537,7 @@ param(
                 }
                                     }       
 
-            AddEmptylines -numberoflines 1 -MessageToIncludeAtTheEnd "Checking HubTransport Server Component" -MessageColor White
+            AddEmptylines -numberoflines 1 -MessageToIncludeAtTheEnd "Checking HubTransport Server Component" -MessageColor Yellow
             $ServerComp=Get-ExchangeServer | Get-ServerComponentState -Component Hubtransport
        if (!($ServerComp | Where-Object {($_.State -like "Active")})){
             Write-host "You Don't have any additional Node with a Hubtransport State set to Active" -ForegroundColor Red
@@ -521,7 +551,7 @@ param(
                     }
             }
 
-            AddEmptylines -numberoflines 1 -MessageToIncludeAtTheEnd "Checking ServerWideOffline Server Component" -MessageColor White
+            AddEmptylines -numberoflines 1 -MessageToIncludeAtTheEnd "Checking ServerWideOffline Server Component" -MessageColor Yellow
            $ServerCompSWO=Get-ExchangeServer | Get-ServerComponentState -Component ServerWideOffline
        if (!($ServerCompSWO | Where-Object {($_.State -like "Active")})){
             Write-host "You Don't have any additional Node with a ServerWideOffline State set to Active" -ForegroundColor Red
@@ -534,7 +564,7 @@ param(
                     }
             }
 
-                   AddEmptylines -numberoflines 1 -MessageToIncludeAtTheEnd "Checking HighAvailability Server Component" -MessageColor White
+                   AddEmptylines -numberoflines 1 -MessageToIncludeAtTheEnd "Checking HighAvailability Server Component" -MessageColor Yellow
            $ServerCompHA=Get-ExchangeServer | Get-ServerComponentState -Component HighAvailability
        if (!($ServerCompHA | Where-Object {($_.State -like "Active")})){
             Write-host "You Don't have any additional Node with a HighAvailability State set to Active" -ForegroundColor Red
@@ -573,7 +603,10 @@ param(
 
            }
 
-         AddEmptylines -numberoflines 1 -MessageToIncludeAtTheEnd "Checking Exchange Servers for Mounting policy" -MessageColor White
+           AddEmptylines -numberoflines 1 -MessageToIncludeAtTheEnd "Checking Message Queue length" -MessageColor Yellow
+           $EXServers | Get-Queue
+
+         AddEmptylines -numberoflines 2 -MessageToIncludeAtTheEnd "Checking Exchange Servers for Mounting policy" -MessageColor Yellow
          $DBSetting=Get-MailboxServer
         if (!($DBSetting | Where-Object {($_.DatabaseCopyAutoActivationPolicy -notlike "Blocked")})){
             Write-Warning "There is no available server with an Mounting Policy set to Unrestricted or IntrasiteOnly"  
