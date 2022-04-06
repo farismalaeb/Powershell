@@ -48,7 +48,6 @@ Function Start-EMMDAGEnabled {
     )
 
         Begin{
-        #$Global:ScriptScope=$True
         AddEmptylines -numberoflines 1 -MessageToIncludeAtTheEnd "Checking Readiness... Please wait" -MessageColor Yellow -ProgressState "Starting" -ProgressPercent 3 
             $ErrorActionPreference="Stop"
             $ReadyToExecute=Check-ScriptReadiness -ServerName $PSBoundParameters['ServerForMaintenance'] -AltServer $PSBoundParameters['ReplacementServerFQDN']
@@ -57,7 +56,7 @@ Function Start-EMMDAGEnabled {
             }
         [hashtable]$ExMainProgress=[ordered]@{}
         if ($PSBoundParameters.ContainsKey('SkipDatabaseHealthCheck')){
-        AddEmptylines -numberoflines 1 -MessageToIncludeAtTheEnd "DB Health check will be ignored as the -SkipDatabaseHealthCheck is selected.`nIts a recommended to use this option in production environment." -MessageColor White
+        AddEmptylines -numberoflines 1 -MessageToIncludeAtTheEnd "DB Health check will be ignored as the -SkipDatabaseHealthCheck is selected.`nIts a recommended to use this option in production environment." -MessageColor red
         Write-Host "Please check the online manual and ensure to follow the best practices"
         }
         }
@@ -66,7 +65,23 @@ Function Start-EMMDAGEnabled {
             AddEmptylines -numberoflines 1 -MessageToIncludeAtTheEnd "Preparing $($PSBoundParameters['ServerForMaintenance']) to be placed in Maintinance Mode" -MessageColor Yellow -ProgressState "Turnning Off HubTransport Activities..."  -ProgressPercent 10 
             $Step1=Set-EMMHubTransportState -Servername $PSBoundParameters['ServerForMaintenance'] -Status Draining
             Write-Host "Processing, Please wait"
-            Start-Sleep -Seconds  5
+            $QState=QueueFailure -ServernameToCheck $PSBoundParameters['ServerForMaintenance']
+            if ($QState -eq 1){
+
+            switch ($PSBoundParameters.Containskey('IgnoreQueue')){
+                $true {write-host "Queue Check... Skipped"}
+                $false{
+                    AddEmptylines -numberoflines 2 -MessageToIncludeAtTheEnd "Message Redirection Process will Start, expected time to finish is 60 seconds." -MessageColor Yellow -ProgressState "Redirecting Messages..." -ProgressPercent 25 
+                    Start-EMMRedirectMessage -SourceServer $PSBoundParameters['ServerForMaintenance'] -ToServer $PSBoundParameters['ReplacementServerFQDN']
+                    Start-EMMRedirectMessage -SourceServer $PSBoundParameters['ServerForMaintenance'] -ToServer $PSBoundParameters['ReplacementServerFQDN']  -CheckOnly
+                    Start-Sleep -Seconds 2
+                    $Qlength=(Get-Queue -server $PSBoundParameters['ServerForMaintenance'] | Where-Object {($_.DeliveryType -notlike "Shadow*") -and ($_.DeliveryType -notlike "Undefined") }| Select-Object Messagecount | Measure-Object -Sum -Property MessageCount).Sum
+                }
+                }
+                }
+                Else{
+                AddEmptylines -numberoflines 1 -MessageToIncludeAtTheEnd "Queue Refresh Failed as the HubTransport still not responding, this might take longer time, but for now will skip the Queue" -MessageColor red 
+                }
             Switch($PSBoundParameters.Containskey('IgnoreCluster')){
                         $true { AddEmptylines -numberoflines 2 -MessageToIncludeAtTheEnd "Skipping Cluster MGMT as user requests." -MessageColor Yellow -ProgressState "Skipping Cluster" -ProgressPercent 50
                                 $step3="Skipped"}
@@ -79,21 +94,15 @@ Function Start-EMMDAGEnabled {
             $true {Set-EMMDBActivationMoveNow -ServerName $PSBoundParameters['ServerForMaintenance'] -ActivationMode BlockMode -TimeoutBeforeManualMove 120 -SkipValidation}
             $false {Set-EMMDBActivationMoveNow -ServerName $PSBoundParameters['ServerForMaintenance'] -ActivationMode BlockMode -TimeoutBeforeManualMove 120  }
             }
-            switch ($PSBoundParameters.Containskey('IgnoreQueue')){
-                $true {write-host "Queue Check... Skipped"}
-                $false{
-                    AddEmptylines -numberoflines 2 -MessageToIncludeAtTheEnd "Message Redirection Process will Start, expected time to finish is 60 seconds." -MessageColor Yellow -ProgressState "Redirecting Messages..." -ProgressPercent 25 
-                    Start-EMMRedirectMessage -SourceServer $PSBoundParameters['ServerForMaintenance'] -ToServer $PSBoundParameters['ReplacementServerFQDN'] -CheckOnly
-                    Start-EMMRedirectMessage -SourceServer $PSBoundParameters['ServerForMaintenance'] -ToServer $PSBoundParameters['ReplacementServerFQDN'] 
-                }
-                }
+            
             AddEmptylines -numberoflines 2 -MessageToIncludeAtTheEnd "Switching ServerComponentState ServerWideOffline to Off" -MessageColor Yellow -ProgressState "Updating ServerWideOffline" -ProgressPercent 95
             Set-ServerComponentState $PSBoundParameters['ServerForMaintenance'] -Component ServerWideOffline -State Inactive -Requester Maintenance -ErrorAction Stop
             $step5=get-ServerComponentState $PSBoundParameters['ServerForMaintenance'] -Component ServerWideOffline
-            Start-Sleep 3
+
             Write-Host "All Commands are completed, and below are the result...`n"-ForegroundColor Yellow
             $ExMainProgress.Add("HubTransport Draining",$Step1)
-            $ExMainProgress.Add("Queue Length Status",(Get-Queue -server $PSBoundParameters['ServerForMaintenance'] | Where-Object {($_.DeliveryType -notlike "Shadow*") -and ($_.DeliveryType -notlike "Undefined") }| Select-Object Messagecount | Measure-Object -Sum -Property MessageCount).Sum)
+            if (($Qlength -eq 0) -or ($Qlength -like $null)){$ExMainProgress.Add("Queue Length Status","All Transfared.")}
+            Else{$ExMainProgress.Add("Queue Length Status",$Qlength)}
             $ExMainProgress.Add("Cluster Node",$step3)
             $ExMainProgress.Add("Activation Policy",(Get-MailboxServer -Identity $PSBoundParameters['ServerForMaintenance']).DatabaseCopyAutoActivationPolicy)
             $ExMainProgress.Add("ServerWide",$step5.State)
@@ -222,29 +231,25 @@ Function QueueFailure{
 param(
 $ServernameToCheck)
     $timer=0
-    Write-Host "Waiting for Queue Refreshing, Please wait, this might take up to 2 Minuts."
+    Write-Host "Restarting HubTransport Server on $($PSBoundParameters['ServernameToCheck'])"
+        sleep 2
+        Get-Service -ComputerName $PSBoundParameters['ServernameToCheck'] -Name MSExchangeTransport | Restart-Service -Force
+        Get-Service -ComputerName $PSBoundParameters['ServernameToCheck'] -Name MSExchangeFrontEndTransport| Restart-Service -Force
         while ($timer -ne 120)
         {
             Trap { 
-                Write-Host "." -NoNewline -ForegroundColor Yellow 
-                $global:FailorNot=1
+                Write-Host "." -NoNewline -ForegroundColor RED 
                 continue
             }
-        sleep 1
+        Start-Sleep 1
 
-        if ((Get-Queue -server $PSBoundParameters['ServernameToCheck'] -ErrorAction stop   | Where-Object {($_.DeliveryType -notlike "Shadow*") -and ($_.DeliveryType -notlike "Undefined") }| Select-Object Messagecount | Measure-Object -Sum -Property MessageCount).Sum -eq 0){
+        if (Get-Queue -server $PSBoundParameters['ServernameToCheck'] -ErrorAction stop){
              
-              Return "Queue Redirection Sent" 
+              Return 1
         }
-
-        if ((Get-Queue -server $PSBoundParameters['ServernameToCheck'] -ErrorAction stop   | Where-Object {($_.DeliveryType -notlike "Shadow*") -and ($_.DeliveryType -notlike "Undefined") }| Select-Object Messagecount | Measure-Object -Sum -Property MessageCount).Sum -gt 0){
-            Write-Host "." -ForegroundColor Green -NoNewline 
-        }
-
           $timer++
-
         }
-        Return "Not Completed"
+        Return 2
 
 
 }
@@ -273,16 +278,11 @@ param(
               }  
               $True {
                 Write-Host "Checking Queue Value, and waiting for it to be 0, the timeout for this process is 60 second, Please wait."
-                
+                try{
                 do
                 {
-                    Trap { 
-                        Write-Host "." -NoNewline -ForegroundColor Yellow 
-                        continue
-                    }
-                 
-                  $QL=(Get-Queue -server $PSBoundParameters['SourceServer'] -ErrorAction stop   | Where-Object {($_.DeliveryType -notlike "Shadow*") -and ($_.DeliveryType -notlike "Undefined") }| Select-Object Messagecount | Measure-Object -Sum -Property MessageCount).Sum
-                  if ($ql -eq 0){return "Queue Transfer successfully"}
+                  $QL=(Get-Queue -server $PSBoundParameters['SourceServer'] -ErrorAction stop | Where-Object {($_.DeliveryType -notlike "Shadow*") -and ($_.DeliveryType -notlike "Undefined") }| Select-Object Messagecount | Measure-Object -Sum -Property MessageCount).Sum
+                  if (($ql -eq 0) -or $($ql -eq $null)){return "Queue Transfer successfully"}
                   Start-Sleep -Seconds 1
                   $counter++
                   if ($counter -eq 60){
@@ -296,7 +296,14 @@ param(
                    }
                 }
                 while ($ql -gt 0)
+                }
+                Catch{
+                $_.Exception.Message
+                }
+
               }
+              
+              
 
         }
 
@@ -563,7 +570,7 @@ param(
                     Write-Host "WARNING: The ServerWideOffline State of $($_.ServerFqdn) is: " -NoNewline; Write-Host $_.State -ForegroundColor RED}
                     }
             }
-
+                 
                    AddEmptylines -numberoflines 1 -MessageToIncludeAtTheEnd "Checking HighAvailability Server Component" -MessageColor Yellow
            $ServerCompHA=Get-ExchangeServer | Get-ServerComponentState -Component HighAvailability
        if (!($ServerCompHA | Where-Object {($_.State -like "Active")})){
@@ -602,9 +609,6 @@ param(
            }
 
            }
-
-           AddEmptylines -numberoflines 1 -MessageToIncludeAtTheEnd "Checking Message Queue length" -MessageColor Yellow
-           $EXServers | Get-Queue
 
          AddEmptylines -numberoflines 2 -MessageToIncludeAtTheEnd "Checking Exchange Servers for Mounting policy" -MessageColor Yellow
          $DBSetting=Get-MailboxServer
