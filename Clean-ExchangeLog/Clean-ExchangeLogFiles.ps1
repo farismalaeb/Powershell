@@ -34,9 +34,9 @@
 <# 
 
 .DESCRIPTION 
- This PowerShell Script will clean and Archive Exchange Server Logs, it also support auto discover for IIS and Exchange directories 
+ This Script cleans Exchange Server Logs 2016/2019 logs generated from the service, it also support auto discover for IIS and Exchange directories. This wont remove any log related to database. The script can be used to calculate only or simlulate delete or perform an actual deletion to save space
 
-#> 
+#>
 [Cmdletbinding(DefaultParameterSetName='DontTakeAction')]
 Param(
 [parameter(Mandatory=$false,ParameterSetName="TakeAction")][switch]$DeleteLogs,
