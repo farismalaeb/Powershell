@@ -34,14 +34,14 @@
 <# 
 
 .DESCRIPTION 
- This PowerShell Script will clean and Archive Exchange Server Logs, it also support auto discover for IIS and Exchange directories 
+ This Script cleans Exchange Server Logs 2016/2019 logs generated from the service, it also support auto discover for IIS and Exchange directories. This wont remove any log related to database. The script can be used to calculate only or simlulate delete or perform an actual deletion to save space
 
-#> 
+#>
 [Cmdletbinding(DefaultParameterSetName='DontTakeAction')]
 Param(
 [parameter(Mandatory=$false,ParameterSetName="TakeAction")][switch]$DeleteLogs,
-[parameter(Mandatory=$False,ParameterSetName="TakeAction")][switch]$SimulateDeleteLogs=$true,
-[parameter(Mandatory=$false,ParameterSetName="DontTakeAction",Position=0)][switch]$JustCalculate=$true,
+[parameter(Mandatory=$False,ParameterSetName="TakeAction")][switch]$SimulateDeleteLogs,
+[parameter(Mandatory=$false,ParameterSetName="DontTakeAction",Position=0)][switch]$JustCalculate,
 [parameter(Mandatory=$False,ParameterSetName="DontTakeAction")]
 [parameter(Mandatory=$False,ParameterSetName="TakeAction")]
 [ValidateScript({If ([int]$_ -gt 0) {
@@ -61,7 +61,7 @@ Function Get-AllFoldersTotalItemsSize{
 Param(
 [cmdletbinding()]
 [parameter(mandatory=$true,Position=0,ValueFromPipeline)]$FolderList,
-[parameter(mandatory=$true)][int32]$Olderthan=0
+[parameter(mandatory=$true)][int32]$Olderthan
 )
 
 Begin{
@@ -74,7 +74,7 @@ Process{
     $TotalItemsize=0
     $ResultTable=@{}
    
-   $AllItemsSize+=(@(Get-ChildItem $FolderList -Recurse -ErrorAction SilentlyContinue | where {($_.CreationTime -lt ((get-date).AddDays(-$Olderthan))) -and ($_.PSIsContainer -like $false) -and (($_.Extension -like "*.log") -or ($_.Extension -like "*.etl"))}).foreach({$_.length }))
+   $AllItemsSize+=(@(Get-ChildItem $FolderList -Recurse -ErrorAction SilentlyContinue | Where-Object {($_.CreationTime -lt ((get-date).AddDays(-$Olderthan))) -and ($_.PSIsContainer -like $false) -and (($_.Extension -like "*.log") -or ($_.Extension -like "*.blg") -or ($_.Extension -like "*.etl"))}).foreach({$_.length }))
     $TotalItemsize=($AllItemsSize | Measure-Object -Sum).Sum
     $ResultTable.Add($FolderList,$TotalItemsize)
     Return $ResultTable
@@ -116,7 +116,7 @@ Function Get-AllRequiredFolder{
         "StorageRESTLogPath",
         "AgentGrayExceptionLogPath")
         $GetTransportService=Get-TransportService -Identity $env:COMPUTERNAME
-        $PossibleLogs+= ($GetTransportServiceParam.ForEach({($GetTransportService).($_).PathName}) | where {$_ -notlike $null})
+        $PossibleLogs+= ($GetTransportServiceParam.ForEach({($GetTransportService).($_).PathName}) | Where-Object {$_ -notlike $null})
 
       $GetFrontendTransportServiceParam=@("ConnectivityLogPath",
         "ReceiveProtocolLogPath",
@@ -130,7 +130,7 @@ Function Get-AllRequiredFolder{
         "TopInboundIpSourcesLogPath"
         )
         $GetFrontendTransportService=Get-FrontendTransportService -Identity $env:COMPUTERNAME
-        $PossibleLogs+=($GetFrontendTransportServiceParam.ForEach({($GetFrontendTransportService).($_).PathName})  | where {$_ -notlike $null})
+        $PossibleLogs+=($GetFrontendTransportServiceParam.ForEach({($GetFrontendTransportService).($_).PathName})  | Where-Object {$_ -notlike $null})
 
         $GetMailboxTransportServiceParam=@("ConnectivityLogPath"
             "ReceiveProtocolLogPath"
@@ -144,7 +144,7 @@ Function Get-AllRequiredFolder{
             "MailboxDeliveryThrottlingLogPath"
             "AgentGrayExceptionLogPath")
             $GetMailboxTransportService=Get-MailboxTransportService -Identity $env:COMPUTERNAME
-       $PossibleLogs+=($GetMailboxTransportServiceParam.ForEach({($GetMailboxTransportService).($_).PathName})  | where {$_ -notlike $null})
+       $PossibleLogs+=($GetMailboxTransportServiceParam.ForEach({($GetMailboxTransportService).($_).PathName})  | Where-Object {$_ -notlike $null})
 
         if (Test-Path(Get-MailboxServer -Identity $env:COMPUTERNAME).CalendarRepairLogPath.Pathname){$PossibleLogs+=(Get-MailboxServer -Identity $env:COMPUTERNAME).CalendarRepairLogPath.Pathname}
         if (test-path(Get-MailboxServer -Identity $env:COMPUTERNAME).LogPathForManagedFolders.Pathname){$PossibleLogs+=(Get-MailboxServer -Identity $env:COMPUTERNAME).LogPathForManagedFolders.Pathname}
@@ -176,7 +176,7 @@ Function Get-AllRequiredFolder{
 
 Function CalculateSizes{
  $GetAllFolders= Get-AllRequiredFolder | Get-AllFoldersTotalItemsSize -Olderthan $LogsOlderXDays
-          $GetAllFolders | ft Name,@{N="Value in MB";E={[math]::Round($_.Value /1MB,2)}} -AutoSize
+          $GetAllFolders | Format-Table Name,@{N="Value in MB";E={[math]::Round($_.Value /1MB,2)}} -AutoSize
           Write-Host "The Total Space used by Exchange and IIS Logs is (MB): " -NoNewline
           Write-host $([math]::Round(($GetAllFolders.values | Measure-Object -Sum).Sum /1MB,2)) -ForegroundColor Green
 }
@@ -195,7 +195,7 @@ Write-host "Simulation Started.. Please wait"-NoNewline
 $FileNameToLog=(Join-Path $PSScriptRoot -ChildPath "FilesForRemoval $(Get-Date -Format "HHmmss").txt")
         $FolderlistToRemove.foreach({
         Write-Host "." -NoNewline
-        @(Get-ChildItem $_ -Recurse -ErrorAction Stop | where {($_.CreationTime -lt ((get-date).AddDays((-$NumberOfDaysToDelete)))) -and ($_.PSIsContainer -like $false) -and (($_.Extension -like "*.log") -or ($_.Extension -like "*.etl"))} ).foreach({
+        @(Get-ChildItem $_ -Recurse -ErrorAction Stop | Where-Object {($_.CreationTime -lt ((get-date).AddDays((-$NumberOfDaysToDelete)))) -and ($_.PSIsContainer -like $false) -and (($_.Extension -like "*.log") -or ($_.Extension -like "*.blg") -or ($_.Extension -like "*.etl"))} ).foreach({
             Add-Content $FileNameToLog -Value $_.fullname
             
          })
@@ -209,7 +209,7 @@ $FileNameToLog=(Join-Path $PSScriptRoot -ChildPath "FilesForRemoval $(Get-Date -
         Write-host "Operation started... Removing`n "-NoNewline
         $FolderlistToRemove.foreach({
         Write-Host "." -NoNewline -ForegroundColor Red
-        @(Get-ChildItem $_ -Recurse -ErrorAction Stop | where {($_.CreationTime -lt ((get-date).AddDays((-$NumberOfDaysToDelete)))) -and ($_.PSIsContainer -like $false) -and (($_.Extension -like "*.log") -or ($_.Extension -like "*.etl"))} ).foreach({
+        @(Get-ChildItem $_ -Recurse -ErrorAction Stop | Where-Object {($_.CreationTime -lt ((get-date).AddDays((-$NumberOfDaysToDelete)))) -and ($_.PSIsContainer -like $false) -and (($_.Extension -like "*.log") -or ($_.Extension -like "*.blg") -or ($_.Extension -like "*.etl"))} ).foreach({
          Trap {
             $Error[1].Exception
             Continue
@@ -240,7 +240,7 @@ if ($PSCmdlet.ParameterSetName -like "TakeAction"){
     for ($i = 0; $i -lt 10; $i++)
         { 
             Write-Host "." -NoNewline
-            sleep 1
+            Start-Sleep 1
 
         }
 

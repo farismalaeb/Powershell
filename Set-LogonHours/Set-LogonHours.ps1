@@ -58,6 +58,7 @@ Function Set-LogonHours{
  $BinaryResult=$FixedTimeZoneOffSet -split '(\d{8})' | Where {$_ -match '(\d{8})'}
  Foreach($singleByte in $BinaryResult){
  $Tempvar=$singleByte.tochararray()
+ [array]::Reverse($Tempvar)
  $Tempvar= -join $Tempvar
  $Byte = [Convert]::ToByte($Tempvar, 2)
  $FullByte[$i]=$Byte
