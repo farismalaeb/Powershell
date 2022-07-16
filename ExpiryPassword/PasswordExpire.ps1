@@ -43,7 +43,25 @@ Send-MgUserMail -UserId (get-mguser -userid (Get-MgContext).account).mail -Messa
 }
 
 
-Start-Transcript -Path (Join-Path $PSScriptRoot -ChildPath "Transcript.txt" ) -Append -IncludeInvocationHeader 
+Function Write-PSCLog{
+    Param(
+        $Message,
+        [parameter(mandatory)]
+        [ValidateSet("Critical","High","Normal","Low","Information")]
+        $ErrorLevel
+    )
+
+    $logpath=(Join-Path $MyInvocation.PSScriptRoot -ChildPath "PasswordLog.txt")
+    $ValuetoWrite=$PSBoundParameters['ErrorLevel'] +"  " + (Get-date).ToLongTimeString() +": " + $PSBoundParameters['Message']
+    if (Test-Path $logpath){
+        add-Content $logpath -Value $ValuetoWrite 
+    }
+    else{
+        New-Item -Path $MyInvocation.PSScriptRoot -Name "PasswordLog.txt" -ItemType File -Value "$($ValuetoWrite)`n"
+    }
+
+}
+
 Import-Module ActiveDirectory
 Import-Module Microsoft.Graph.Teams
 
@@ -76,10 +94,15 @@ $ChatIDData=[PSCustomObject]@{
 $AllChatIDandUsers+=$ChatIDData
  }
 
-$SenderID=(get-mguser -userid (Get-MgContext).account).mail
 foreach ($user in $users) {
 try{
-    $RecpID=Get-MgUser -UserId $user.UserPrincipalName
+    $RecpID=Get-MgUser -UserId $user.UserPrincipalName -ErrorAction Stop
+}
+Catch{
+write-host $_.Exception.Message
+Write-PSCLog -Message $_.Exception.Message -ErrorLevel Critical
+}
+
      if ($user.PasswordExpiry -eq $DaysToSendWarning) {
         $ChatSessionID=$AllChatIDandUsers |Where-Object {$_.useremail -like $user.EmailAddress}
         if (!($ChatSessionID)){
@@ -105,17 +128,16 @@ try{
                 $ChatSessionID=New-MgChat -BodyParameter $NewChatIDParam
 
         }
-        Write-Host "Sending MEssage to $($RecpID.Mail)" -ForegroundColor Green
+        Write-Host "Sending Message to $($RecpID.Mail)" -ForegroundColor Green
+        try {
         New-MgChatMessage -ChatId $ChatSessionID.ID -Body @{Content ="Dear $($((Get-Culture).TextInfo.ToTitleCase($RecpID.GivenName))), Your Password will expire in $($PSBoundParameters['NumberofDay']) Days, Please follow the link to update it https://www.office.com"} -Importance Urgent 
         Send-PSCGraphEmail -To $RecpID.Mail -subject 'Password' -MessageType HTML -DaysToResetPassword $PSBoundParameters['NumberofDay'] 
-        
+        }
+        catch{
+            write-host $_.Exception.Message
+            Write-PSCLog -Message $_.Exception.Message -ErrorLevel Critical
+
+        }
  }
-}
-Catch{
-write-host $_.Exception.Message
-
 
 }
-
-}
-Stop-Transcript 
