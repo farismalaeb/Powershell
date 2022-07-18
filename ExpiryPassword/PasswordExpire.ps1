@@ -66,7 +66,7 @@ Import-Module ActiveDirectory
 Import-Module Microsoft.Graph.Teams
 
 
-$Scope=@('Chat.Create','Chat.ReadWrite','Mail.Send','User.Read') 
+$Scope=@('Chat.Create','Chat.ReadWrite','Mail.Send','User.Read','User.Read.All') 
 Connect-MgGraph -Scopes $Scope
 
 $DaysToSendWarning = (get-date).adddays($PSBoundParameters['NumberofDay']).ToLongDateString()
@@ -100,7 +100,8 @@ try{
 }
 Catch{
 write-host $_.Exception.Message
-Write-PSCLog -Message $_.Exception.Message -ErrorLevel Critical
+$ErrorMessage=$_.Exception.Message +", For user $($user.UserPrincipalName)"
+Write-PSCLog -Message $ErrorMessage -ErrorLevel Critical
 }
 
      if ($user.PasswordExpiry -eq $DaysToSendWarning) {
