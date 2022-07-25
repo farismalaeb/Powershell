@@ -1,6 +1,6 @@
 param(
 [parameter(mandatory)]$NumberofDay,
-[parameter(Mandatory=$false)]
+[parameter(Mandatory=$True)]
 [ValidateNotNullOrEmpty()]$LDAPdistinguishedName
 )
 
@@ -81,19 +81,6 @@ switch ($PSBoundParameters.ContainsKey('LDAPdistinguishedName')) {
     @{Name = "PasswordExpiry"; Expression = {[datetime]::FromFileTime($_."msDS-UserPasswordExpiryTimeComputed").tolongdatestring() }}}
 }
 
-
- #Find All ChatID with the recipient users
- $AllChatIDandUsers=@()
- $AllChat=get-mgchat -Filter "chattype eq 'oneOnOne'"
- Foreach ($SingleChat in $AllChat){
-$ChatIDData=[PSCustomObject]@{
-    ID = $SingleChat.Id
-    UserID = (Get-MgChatMember -ChatId $SingleChat.Id )[1].DisplayName
-    UserEmail=(Get-MgChatMember -ChatId $SingleChat.Id )[1].AdditionalProperties.email
-}
-$AllChatIDandUsers+=$ChatIDData
- }
-
 foreach ($user in $users) {
 try{
     $RecpID=Get-MgUser -UserId $user.UserPrincipalName -ErrorAction Stop
@@ -103,10 +90,7 @@ write-host $_.Exception.Message
 $ErrorMessage=$_.Exception.Message +", For user $($user.UserPrincipalName)"
 Write-PSCLog -Message $ErrorMessage -ErrorLevel Critical
 }
-
      if ($user.PasswordExpiry -eq $DaysToSendWarning) {
-        $ChatSessionID=$AllChatIDandUsers |Where-Object {$_.useremail -like $user.EmailAddress}
-        if (!($ChatSessionID)){
                 $NewChatIDParam = @{
                     ChatType = "oneOnOne"
                     Members = @(
@@ -128,10 +112,32 @@ Write-PSCLog -Message $ErrorMessage -ErrorLevel Critical
                 }
                 $ChatSessionID=New-MgChat -BodyParameter $NewChatIDParam
 
-        }
+        
         Write-Host "Sending Message to $($RecpID.Mail)" -ForegroundColor Green
         try {
-        New-MgChatMessage -ChatId $ChatSessionID.ID -Body @{Content ="Dear $($((Get-Culture).TextInfo.ToTitleCase($RecpID.GivenName))), Your Password will expire in $($PSBoundParameters['NumberofDay']) Days, Please follow the link to update it https://www.office.com"} -Importance Urgent 
+            #### Sending The Message
+            $Body = @{
+                ContentType = 'html'
+                Content = @"
+                 Hello <at id="0">$($RecpID.DisplayName)</at><br>
+                 Your password will expire in $($PSBoundParameters['NumberofDay']), Please follow <Strong><a href='www.office.com'>the instruction here to update it</a> </Strong> <BR>
+                Thanks for your attention
+"@
+              }
+              
+              $Mentions = @(
+                      @{
+                          Id = 0
+                          MentionText = $RecpID.DisplayName
+                          Mentioned = @{
+                              User = @{
+                                  Id = $RecpID.Id
+                                  UserIdentityType = "aadUser"
+                              }
+                          }
+                      }                      
+                  )
+        New-MgChatMessage -ChatId $ChatSessionID.ID -Body $Body -Importance Urgent -Mentions $Mentions
         Send-PSCGraphEmail -To $RecpID.Mail -subject 'Password' -MessageType HTML -DaysToResetPassword $PSBoundParameters['NumberofDay'] 
         }
         catch{
