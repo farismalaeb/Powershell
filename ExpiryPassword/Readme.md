@@ -4,8 +4,8 @@ The **PasswordExpire.ps1** is a PowerShell script to send a notification for the
 
 This Scripte accept the following parameters:
 
-- [Required] NumberofDay: Number of days left in the users password before sending the notification, a good starting point is 7
-- [Not Required] LDAPdistinguishedName: The DN of the OU the users are located. as you might only use this scripe on a test range of users.
+- [Required][int] **NumberofDay**: Number of days left in the users password before sending the notification, a good starting point is 7
+- [Not Required][String] **LDAPdistinguishedName**: The DN of the OU the users are located. as you might only use this scripe on a test range of users.
 
 ## Example:
 
