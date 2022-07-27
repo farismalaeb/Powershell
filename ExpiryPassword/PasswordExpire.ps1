@@ -1,3 +1,26 @@
+<#PSScriptInfo
+.VERSION 1.0
+.AUTHOR Faris Malaeb
+.PROJECTURI https://www.powershellcenter.com/2022/07/15/new-mgchat/
+.DESCRIPTION 
+ The PasswordExpire.ps1 is a PowerShell script to send a notification for the users reminding them with the password expiry.
+.Parameter
+- [Required][int] NumberofDay: Number of days left in the users password before sending the notification, a good starting point is 7
+- [Not Required][String] LDAPdistinguishedName: The DN of the OU the users are located. as you might only use this scripe on a test range of users.
+.Example
+Scan all AD users for expiring users password within 1 day 
+ .\PasswordExpire.ps1 -NumberofDay 1
+Scan Only a single OU users for expiring users password within 1 day, you can use this if you want to test or only include some users in this notification
+ .\PasswordExpire.ps1 -NumberofDay 1 -LDAPdistinguishedName 'OU=Employees,DC=Test,DC=com'
+.Permissins
+ - Chat.Create
+ - Chat.ReadWrite
+ - Mail.Send
+ - User.Read
+ - User.Read.All
+
+#> 
+
 param(
 [parameter(mandatory)]$NumberofDay,
 [parameter(Mandatory=$True)]
