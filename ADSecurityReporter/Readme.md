@@ -1,5 +1,13 @@
 ## Scan Active Directory Access Control List (ACL).
 
+### Update for version 1.2
+
+Script Compatibility check, As the script wont work with PS7 and Active Directory module built version 0.
+
+You can check the version by running `(get-module activedirectory).Version.Build
+Fix issues related to empty parameters.
+Fix small bugs.
+
 ### Update for version 1.1.1
 
 - No more seperate cmdlet to scan the domain, instead use the main cmdlet **Get-PscActiveDirectoryACL** and set the parameter **ACLToInclude** to **All**, **DCOnly** or **OUScanOnly**

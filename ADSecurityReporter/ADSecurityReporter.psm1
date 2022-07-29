@@ -1,9 +1,61 @@
-﻿#Requires –Modules ActiveDirectory
+﻿
+<#PSScriptInfo
+
+.VERSION 1.2
+
+.GUID b1dcac0d-adb4-4895-9580-18bd2a3ce839
+
+.AUTHOR Faris Malaeb
+
+.COMPANYNAME
+
+.COPYRIGHT 2022
+
+.TAGS Active Directory
+
+.LICENSEURI
+
+.PROJECTURI https://www.powershellcenter.com/2021/08/29/active-directory-acl-reporter-powershell/
+
+.ICONURI
+
+.EXTERNALMODULEDEPENDENCIES 
+
+.REQUIREDSCRIPTS
+
+.EXTERNALSCRIPTDEPENDENCIES
+
+.RELEASENOTES
+
+
+.PRIVATEDATA
+
+#>
+
+#Requires -Module ActiveDirectory
+<# 
+
+.DESCRIPTION 
+ Report Active Directory ACL and detect hidden accounts 
+.Example
+To Scan your all AD tree and generate an HTML report
+ Get-PscActiveDirectoryACL -GenerateHTMLPath 'C:\MyADReport.html' -ACLToInclude All
+
+To Scan only the top level domain
+  Get-PscActiveDirectoryACL -GenerateHTMLPath 'C:\MyADReport.html' -ACLToInclude TopLevelDomainOnly
+
+To Scan only the OU without the Top Level Domain TLD
+  Get-PscActiveDirectoryACL -GenerateHTMLPath 'C:\MyADReport.html' -ACLToInclude OUScanOnly
+
+To Scan a single OU
+  Get-PscActiveDirectoryACL -GenerateHTMLPath 'C:\MyADReport.html' -ScanDNName "OU=MyOU,DC=Domain,DC=Local"
+#>
 
 Function Get-PscActiveDirectoryACL{
-[cmdletbinding()]
+[cmdletbinding(DefaultParameterSetName='All')]
 param(
-[parameter(mandatory=$false)]
+[parameter(mandatory=$true,ParameterSetName='All')]
+[parameter(ParameterSetName='OneDN')]
 [ValidateNotNullOrEmpty()]
 [string]$GenerateHTMLPath,
 [parameter(mandatory=$false)][switch]$ExcludeNTAUTHORITY,
@@ -13,11 +65,13 @@ param(
 [parameter(mandatory=$false)][switch]$ExcludeGroups,
 [parameter(mandatory=$false)][switch]$ExcludeInheritedPermission,
 [parameter(mandatory=$false)][switch]$DontRunBasicSecurityCheck,
-[parameter(mandatory=$false,ParameterSetName='All')]
-[validateset("TopLevelDomainOnly","OUScanOnly","All")]$ACLToInclude="All",
-[parameter(mandatory=$false,ParameterSetName='OneDN')]$ScanDNName
+[parameter(mandatory=$true,ParameterSetName='All',
+           HelpMessage="Type one of the following: TopLevelDomainOnly or OUScanOnly or All")]
+[validateset("TopLevelDomainOnly","OUScanOnly","All")]$ACLToInclude,
+[parameter(mandatory=$true,ParameterSetName='OneDN')]$ScanDNName
 )
 
+write-host "Scanning started, This process can take minuts to finish, so please wait." -ForegroundColor Yellow 
 Write-Host "Building Permission list, Please Wait..." -ForegroundColor Yellow -NoNewline
 $DCExtRight = @{}
 $DCExtRight=Convert-PSCGUIDToName -GetFullList
@@ -223,3 +277,14 @@ End{
 }
 
 Export-ModuleMember Convert-PscGUIDToName
+
+
+write-host "PowerShell Version: "$($PSVersionTable.PSVersion.Major)
+write-host "AD Module Version: "$((get-module activedirectory).Version.Build)
+if (($PSVersionTable.PSVersion.Major -eq 7) -and (get-module activedirectory).Version.Build -ne 1 ){
+Write-Host "********* Cannot start **********" -ForegroundColor Red
+Write-Host "Sorry, But This script dont support PowerShell 7 with ActiveDirectory Module Version 1.0.0.0 `nPlease use PowerShell 5..." -ForegroundColor Red
+Write-Host "If you want to use PowerShell 7, then try it on Windows 2019, as ActiveDirectory Module there is 1.0.1.0, not 1.0.0.0" -ForegroundColor Red
+write-host "The Issue is the PSDrive is not created in PS7 and AD Module build 0" -ForegroundColor Red
+Throw "Cannot continue.. I am dead X-("
+}
