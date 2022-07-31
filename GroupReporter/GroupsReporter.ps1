@@ -1,43 +1,49 @@
-param(
-[cmdletbinding()]
-[Parameter()][switch]$IncludeonPremise
+<#
+.SYNOPSIS
+   Report On-Preim AD Users and which Groups they are joined to
+.DESCRIPTION
+   This script show a report of each AD User and the groups this user is member of
+.LINK
+    Specify a URI to a help page, this will show when Get-Help -Online is used.
+.EXAMPLE
+    .\GRoupReporter.ps1 -FileToSave C:\MyADUserReport.csv
+#>
+
+Param(
+[Parameter(Mandatory=$True)]
+[ValidateNotNull()]
+[string]$FileToSave
 )
-Connect-MgGraph -Scopes @('Group.Read.all')
-Select-MgProfile -Name beta
-$FullResults=@()
-switch ($PSBoundParameters.ContainsKey('IncludeonPremise')){
-    $true {$AllGroups=Get-MgGroup -All}
-    $false {$AllGroups=Get-MgGroup -All |Where-Object {$_.OnPremisesSyncEnabled -notlike $true}}
-}
 
-foreach ($SingleGroup in $AllGroups){
-    $Result=[PSCustomObject]@{
-        GroupName = $SingleGroup.DisplayName
-        Description=$SingleGroup.Description
-        CloudID=$SingleGroup.Id
-        GroupTypes=''
-        WriteBackEnabled=$SingleGroup.AdditionalProperties.writebackConfiguration.isEnabled
-        WriteBackAs=$SingleGroup.AdditionalProperties.writebackConfiguration.onPremisesGroupType
-        Source=''
-        OnPremisesSamAccountName=$SingleGroup.OnPremisesSamAccountName
-        OnPremisesSecurityIdentifier=$SingleGroup.OnPremisesSecurityIdentifier
+[System.Collections.ArrayList]$fullReport=@()
+$AllUsers=Get-ADUser -Filter 'Enabled -eq  $true' -Properties Name,givenName,userPrincipalName
+$CSVheaderNumber=0
+$CSVIndex=0
+foreach ($singleuser in $AllUsers)
+
+{
+    $Report=[PSCustomObject]@{
+        Name = $singleuser.Name
+        givenName=$singleuser.GivenName
+        userPrincipalName=$singleuser.userPrincipalName
     }
+    write-host "Processing User: $($singleuser.SamAccountName)"  -ForegroundColor Green
+    $AllGroups=Get-ADPrincipalGroupMembership $singleuser.SamAccountName 
 
-switch ($SingleGroup) {
-    {$_.GroupTypes -contains "Unified"}{$Result.GroupTypes='Unified'}
-    {($_.GroupTypes -notcontains "Unified") -and ($_.mailEnabled -like $false) -and ($_.securityEnabled -like $true)}{$Result.GroupTypes='Security'}
-    {($_.GroupTypes -notcontains "Unified") -and ($_.mailEnabled -like $true) -and ($_.securityEnabled -like $true)}{$Result.GroupTypes= "Mail-enabled security groups"}
-    {($_.GroupTypes -notcontains "Unified") -and ($_.mailEnabled -like $true) -and ($_.securityEnabled -like $False)}{$Result.GroupTypes= "Distribution groups"}
-    {($_.OnPremisesSyncEnabled -like $true)}{$Result.Source="OnPremis"}
-    {($_.OnPremisesSyncEnabled -like $null)}{$Result.Source="Cloud"}
+    if ($AllGroups.name.Count -gt $CSVheaderNumber){ $CsvHeaderNumber=$AllGroups.Count;$CSVIndex=$fullReport.Count}
+    if ($AllGroups.name.count -eq 1){
+        $Report | Add-Member -NotePropertyName "Group0" -NotePropertyValue $AllGroups.name
+    }
+        Else{
+        for ($i = 0; $i -lt $AllGroups.name.count; $i++) 
+        {
+        $GroupName=Get-ADGroup -Identity $AllGroups[$i].SamAccountName
+
+            $Report | Add-Member -NotePropertyName "Group$i" -NotePropertyValue $GroupName.name
+        }
+        }
+
+    $fullReport.Add($Report) | Out-Null
 }
-
-$FullResults+=$Result
-
-}
-
-    
-    return $FullResults
-
-
-
+$fullReport[$CSVIndex] | Export-Csv -Path $PSBoundParameters['FileToSave'] -NoTypeInformation
+$fullReport[0..($CSVIndex -1)+($CSVIndex +1)..$fullReport.count] | Export-Csv -Path $PSBoundParameters['FileToSave'] -NoTypeInformation -Append -Force
