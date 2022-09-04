@@ -19,7 +19,6 @@ function Send-GraphMail {
         [Parameter(Mandatory=$false)]$Flag,
         [Parameter(Mandatory=$false)]
         [ValidateSet('Low','High')] $Importance,
-        [Parameter(Mandatory=$false)][switch]$SaveInSentItem,
         [Parameter(Mandatory=$false,ParameterSetName='Attach')]$Attachments,
         [Parameter(Mandatory=$True,ParameterSetName='Attach')]$DocumentType
 
