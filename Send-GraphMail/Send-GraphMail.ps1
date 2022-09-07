@@ -36,7 +36,7 @@ send-GraphMail -To 'vdi1@adcci.gov.ae' -Subject "Test Message" -MessageFormat HT
 Return and get how the JSON is structured without sending the Email, this is done by using the -ReturnJSON Parameter
 $JSONFile=send-GraphMail -To 'vdi1@adcci.gov.ae' -Subject "Test Message" -MessageFormat HTML -Body "Hi This is New Message" -Flag -ReturnJSON
 
-#>
+#> 
 Function Send-GraphMail {
     [CmdletBinding()]
     param (
@@ -179,7 +179,10 @@ switch ($PSBoundParameters.ContainsKey('ReturnJSON')) {
     $false {}
 }
 
-if (!((Get-MgContext).account)){Write-Host "Please connect to Graph first"; Throw}
+
+if ((!(Get-MgContext)) -and (!($PSBoundParameters.ContainsKey('ReturnJSON'))))
+    {Throw "Please connect to Graph first"}
 Send-mgUsermail -UserId (Get-MgContext).Account -BodyParameter $Body -Debug 
 
 }
+
