@@ -9,20 +9,20 @@ Send Microsoft Graph Email messaging using a simplified approach
 ## PARAMETER
 
     Send-GraphMail Support the following parameters
-    [Array] To: The recipients address, it can be an array for multiple account, just make sure to include the array type @("User1@domain.com","User2@Domain.com")
-    [Array] Bcc: Similar to To, but this is the BCC and also support array of recipients
-    [Array] CC: Similar to To and Bcc, also support array of recipients.
-    [String] Subject: The Message Subject
-    [String] MessageFormat: it can be HTML or Text
-    [String] Body: The Message Body you want to send.
-    [Switch] BodyFromFile: This is a Switch parameter. Using it mean that the body is stored in a file in your hard drive. When using the BodyFromFile, the Body parameter should be the full path of the file.
-    [Switch] DeliveryReport: Set to receive a delivery report email or not
-    [Switch] ReadReport: set to receive a read report or not.
-    [Switch] Flag: enable the follow-up flag for the message
-    [ValidationSet] Importance: Set the message priority, it can be one of the following, Low or High
-    [String] Attachments: The Attachment file path. For now it only support 1 attachment, if you want more, let me know
-    [String] DocumentType: The attachment MIME type, for example for text file, the DocumentType is text/plain
-    [Switch] ReturnJSON: This wont send the email, but instead it return the JSON file fully structured and ready so you can invoke it with any other tool.
+    - [Array] To: The recipients address, it can be an array for multiple account, just make sure to include the array type @("User1@domain.com","User2@Domain.com")
+    - [Array] Bcc: Similar to To, but this is the BCC and also support array of recipients
+    - [Array] CC: Similar to To and Bcc, also support array of recipients.
+    - [String] Subject: The Message Subject
+    - [String] MessageFormat: it can be HTML or Text
+    - [String] Body: The Message Body you want to send.
+    - [Switch] BodyFromFile: This is a Switch parameter. Using it mean that the body is stored in a file in your hard drive. When using the BodyFromFile, the Body parameter should be the full path of the file.
+    - [Switch] DeliveryReport: Set to receive a delivery report email or not
+    - [Switch] ReadReport: set to receive a read report or not.
+    - [Switch] Flag: enable the follow-up flag for the message
+    - [ValidationSet] Importance: Set the message priority, it can be one of the following, Low or High
+    - [String] Attachments: The Attachment file path. For now it only support 1 attachment, if you want more, let me know
+    - [String] DocumentType: The attachment MIME type, for example for text file, the DocumentType is text/plain
+    - [Switch] ReturnJSON: This wont send the email, but instead it return the JSON file fully structured and ready so you can invoke it with any other tool.
     ##############
     NOT included, Beta endpoints are not included, such as Mentions.
 
