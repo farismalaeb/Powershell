@@ -47,4 +47,4 @@ This Script wont authenticate to Graph API, make sure to use Connect-MgGraph fir
 
 ## Full help
 
-Read more about it [PowerShell Center](https://www.powershellcenter.com").
+Read more about it [PowerShell Center](https://www.powershellcenter.com).
