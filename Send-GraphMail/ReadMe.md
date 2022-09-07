@@ -30,14 +30,21 @@ Send Microsoft Graph Email messaging using a simplified approach
 ## EXAMPLE
 
 Send Graph email message to multiple users with attachments and multiple To, CC and single Bcc
-Send-GraphMail -To @('user1@domain.com','user2@domain.com') -CC @('cc@domain.com','cc1@domain.com) -Bcc "bcc@domain.com" -Subject "Test Message" -MessageFormat HTML -Body 'This is the Message Body' -DeliveryReport -ReadReport -Flag -Importance High -Attachments C:\MyFile.txt -DocumentType 'text/plain'
+
+```Send-GraphMail -To @('user1@domain.com','user2@domain.com') -CC @('cc@domain.com','cc1@domain.com') -Bcc "bcc@domain.com" -Subject "Test Message" -MessageFormat HTML -Body 'This is the Message Body' -DeliveryReport -ReadReport -Flag -Importance High -Attachments C:\MyFile.txt -DocumentType 'text/plain'```
 
 Send Graph email, load the Body from a file stored locally, make sure to use the BodyFromFile switch
-send-GraphMail -To 'vdi1@adcci.gov.ae' -Subject "Test Message" -MessageFormat HTML -Body C:\11111.csv -BodyFromFile -DeliveryReport -ReadReport -Flag -Importance High -Attachments 'C:\MyFile.txt' -DocumentType 'text/plain'
+
+````Send-GraphMail -To 'vdi1@adcci.gov.ae' -Subject "Test Message" -MessageFormat HTML -Body C:\11111.csv -BodyFromFile -DeliveryReport -ReadReport -Flag -Importance High -Attachments 'C:\MyFile.txt' -DocumentType 'text/plain'````
 
 Return and get how the JSON is structured without sending the Email, this is done by using the -ReturnJSON Parameter
-$JSONFile=send-GraphMail -To 'vdi1@adcci.gov.ae' -Subject "Test Message" -MessageFormat HTML -Body "Hi This is New Message" -Flag -ReturnJSON
+
+````$JSONFile=send-GraphMail -To 'vdi1@adcci.gov.ae' -Subject "Test Message" -MessageFormat HTML -Body "Hi This is New Message" -Flag -ReturnJSON````
 
 ## NOTES
 
 This Script wont authenticate to Graph API, make sure to use Connect-MgGraph first
+
+## Full help
+
+Read more about it [PowerShell Center](https://www.powershellcenter.com").
