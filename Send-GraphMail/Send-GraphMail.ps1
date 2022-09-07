@@ -1,4 +1,32 @@
-<#
+
+<#PSScriptInfo
+
+.VERSION 1.0
+
+.GUID 5027146b-5a2b-498f-b873-e5f268f149ad
+
+.AUTHOR f.malaeb
+
+.COMPANYNAME PowerShellCenter.com
+
+.COPYRIGHT 2022
+
+.TAGS Send-GraphMail
+
+.LICENSEURI 
+
+.PROJECTURI https://www.powershellcenter.com/2022/09/07/powershell-script-to-simplify-send-mgusermail/
+
+.ICONURI 
+
+.EXTERNALMODULEDEPENDENCIES 
+
+.REQUIREDSCRIPTS 
+
+.EXTERNALSCRIPTDEPENDENCIES 
+
+.RELEASENOTES
+
 .SYNOPSIS
    Send Microsoft Graph Email messaging using a simplified approach
 .DESCRIPTION
