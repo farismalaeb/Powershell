@@ -54,10 +54,14 @@ To Scan a single OU
 Function Get-PscActiveDirectoryACL{
 [cmdletbinding(DefaultParameterSetName='All')]
 param(
-[parameter(mandatory=$true,ParameterSetName='All')]
+[parameter(mandatory=$false,ParameterSetName='All')]
 [parameter(ParameterSetName='OneDN')]
 [ValidateNotNullOrEmpty()]
 [string]$GenerateHTMLPath,
+[parameter(mandatory=$false,ParameterSetName='All')]
+[parameter(ParameterSetName='OneDN')]
+[ValidateNotNullOrEmpty()]
+[string]$GenerateCSVPath,
 [parameter(mandatory=$false)][switch]$ExcludeNTAUTHORITY,
 [parameter(mandatory=$false)][switch]$ExcludeBuiltIN,
 [parameter(mandatory=$false)][switch]$ExcludeCreatorOwner,
@@ -99,7 +103,7 @@ Write-Host "Completed." -ForegroundColor Green
 
   if (!($PSBoundParameters['DontRunBasicSecurityCheck'])){
 
-    $CheckDC=Get-ADObject -Filter * | where {$_.objectclass -like $null}
+    $CheckDC=Get-ADObject -Filter * | Where-Object {$_.objectclass -like $null}
         if (!([System.String]::IsNullOrEmpty($CheckDC.DistinguishedName))){
             Write-Host "WARNING: It seems there is one or more OU or Container you are not allowed to access"-BackgroundColor red -ForegroundColor White
             Write-Host "Check the following $($CheckDC.DistinguishedName) and confirm its safe and there is no hidding account."-BackgroundColor red -ForegroundColor White
@@ -111,7 +115,6 @@ Write-Host "Completed." -ForegroundColor Green
 $CNOUResult=@()
 Foreach ($Singleobj in $CNOU){
     $CNOUPer=Get-acl -Path "AD:\$($Singleobj)"
-    $CNOUPermissionName=""
         Foreach($SCNOUACL in $CNOUPer.Access){
             if (($PSBoundParameters['ExcludeEveryOne']) -and ($SCNOUACL.IdentityReference -like "Everyone")){continue}
             if (($PSBoundParameters['ExcludeBuiltIN']) -and ($SCNOUACL.IdentityReference -like "BUILTIN*")){continue}
@@ -150,7 +153,13 @@ Foreach ($Singleobj in $CNOU){
   
 
 }
+
+if ($PSBoundParameters['GenerateCSVPath']){
+    $CNOUResult | Export-Csv -Path $PSBoundParameters['GenerateCSVPath'] -NoTypeInformation 
+}
+
 if ($PSBoundParameters['GenerateHTMLPath']){
+
 Write-host "Generating HTML Report, Please wait..." -ForegroundColor Green
 
 $header = @"
@@ -207,9 +216,7 @@ $header = @"
     Write-Host "Report Ready.. "-ForegroundColor Green
 
 }
-Else{
-Return $CNOUResult
-}
+if ((!($PSBoundParameters['GenerateCSVPath']))-and (!($PSBoundParameters['GenerateHTMLPath']))){Return $CNOUResult}
 }
 Export-ModuleMember Get-PscActiveDirectoryACL
 
@@ -218,8 +225,7 @@ Function TranslatePermission{
     [string]$PermList
     )
     $UpdatedPrelist=@()
-    $UpdatePer=""
-                Foreach ($PermItem in ($PermList.Split(", ") | where {$_ -notlike $null})){
+                Foreach ($PermItem in ($PermList.Split(", ") | Where-Object {$_ -notlike $null})){
                     switch ($PermItem){
                         'WriteProperty' {$UpdatedPrelist+='Can Write'}
                         'AccessSystemSecurity' {$UpdatedPrelist+='Set SCAL "Audit"'}
@@ -281,6 +287,8 @@ Export-ModuleMember Convert-PscGUIDToName
 
 write-host "PowerShell Version: "$($PSVersionTable.PSVersion.Major)
 write-host "AD Module Version: "$((get-module activedirectory).Version.Build)
+write-host "You are using version 1.3"
+
 if (($PSVersionTable.PSVersion.Major -eq 7) -and (get-module activedirectory).Version.Build -ne 1 ){
 Write-Host "********* Cannot start **********" -ForegroundColor Red
 Write-Host "Sorry, But This script dont support PowerShell 7 with ActiveDirectory Module Version 1.0.0.0 `nPlease use PowerShell 5..." -ForegroundColor Red

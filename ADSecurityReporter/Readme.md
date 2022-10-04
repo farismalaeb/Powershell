@@ -1,5 +1,14 @@
 ## Scan Active Directory Access Control List (ACL).
 
+### Update for version 1.3
+
+Added -GenerateCSVPath to generate CSV file also, you can use the GenerateCSVPath with the GenerateHTMLPath if you want.
+
+If niether GenerateHTMLPath nor GenerateCSVPath are used then the script return the results as objects through the pipline.
+
+Also basic fix and minor updates are applied.
+
+
 ### Update for version 1.2
 
 Script Compatibility check, As the script wont work with PS7 and Active Directory module built version 0.
