@@ -46,9 +46,9 @@ try{
     $VMsInHost=Get-PSCVMHost $FromVMHostName | Get-PSCVM | where{$_.PowerState -like "*On"}
 
     Foreach($SingleVM in $VMsInHost){
-    [System.Collections.ArrayList]$AllhostInCluster=@()
+    $AllhostInCluster=@()
     $WorkingNodes=Get-PSCCluster -Name $FromCluster -ea Stop | Get-PSCVMHost | where{($_.name -notlike $FromVMHostName) -and ($_.ConnectionState -notlike "*main*") -and ($_.ConnectionState -notlike "NotResponding")-and ($_.ConnectionState -notlike "Unknown")} |Sort-Object -Property MemoryUsageGB
-    $AllhostInCluster.Add($WorkingNodes)
+    $AllhostInCluster+=$WorkingNodes
     Write-host "Parsing VM " $SingleVM.Name -ForegroundColor Green
         
         [int]$NewVMServerMemsize=$AllhostInCluster[0].MemoryUsageGB + $SingleVM.MemoryGB
