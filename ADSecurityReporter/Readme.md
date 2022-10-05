@@ -4,10 +4,9 @@
 
 Added -GenerateCSVPath to generate CSV file also, you can use the GenerateCSVPath with the GenerateHTMLPath if you want.
 
-If niether GenerateHTMLPath nor GenerateCSVPath are used then the script return the results as objects through the pipline.
+If neither GenerateHTMLPath nor GenerateCSVPath are used then the script return the results as objects through the pipeline.
 
 Also basic fix and minor updates are applied.
-
 
 ### Update for version 1.2
 
