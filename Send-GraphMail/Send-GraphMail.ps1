@@ -64,6 +64,9 @@ send-GraphMail -To 'vdi1@adcci.gov.ae' -Subject "Test Message" -MessageFormat HT
 Return and get how the JSON is structured without sending the Email, this is done by using the -ReturnJSON Parameter
 $JSONFile=send-GraphMail -To 'vdi1@adcci.gov.ae' -Subject "Test Message" -MessageFormat HTML -Body "Hi This is New Message" -Flag -ReturnJSON
 
+Send Graph email including multiple attachment.
+Send-GraphMail -To "ToUser@powershellcenter.com" -CC "farisnt@gmail.com" -Bcc "CCUser@powershellcenter.com" -Subject "Test V1" -MessageFormat HTML -Body "Test" -MultiAttachment @{"C:\11111.csv"="text/plain";"C:\222222.csv"="text/plain"}
+
 #> 
 Function Send-GraphMail {
     [CmdletBinding()]
@@ -77,9 +80,11 @@ Function Send-GraphMail {
         [ValidateSet('HTML','Text')]$MessageFormat,
         [Parameter(Mandatory=$false,ParameterSetName='Body')]
         [parameter(ParameterSetName='Attach')]
+        [parameter(ParameterSetName='Attachmore')]
         $Body,
         [Parameter(Mandatory=$false,ParameterSetName='Body')]
         [parameter(ParameterSetName='Attach')]
+        [parameter(ParameterSetName='Attachmore')]
         [Switch]$BodyFromFile,
         [Parameter(Mandatory=$false)][switch]$DeliveryReport,
         [Parameter(Mandatory=$false)][switch]$ReadReport,
@@ -87,8 +92,9 @@ Function Send-GraphMail {
         [Parameter(Mandatory=$false)]
         [ValidateSet('Low','High')] $Importance,
         [Parameter(Mandatory=$false,ParameterSetName='Attach')]$Attachments,
+        [Parameter(Mandatory=$True,ParameterSetName='Attach')]$DocumentType,
         [Parameter(Mandatory=$false)][switch]$ReturnJSON,
-        [Parameter(Mandatory=$True,ParameterSetName='Attach')]$DocumentType
+        [Parameter(Mandatory=$True,ParameterSetName='Attachmore')][Hashtable]$MultiAttachment
 
     )
 
@@ -149,7 +155,7 @@ switch ($PSBoundParameters.ContainsKey('Body')) {
 ## Attachment Parameter
 switch ($PSBoundParameters.ContainsKey('Attachments')) {
     $true { $Body.Message.Add('Attachments',@()) 
-            Foreach ($Singleattach In $Attachments){ #OKay as you are reading here, This should fixed to support multiple attachment, Each attach should have its own ContentType.
+            Foreach ($Singleattach In $Attachments){ 
                 $AttachDetails=@{}
                 $AttachDetails.Add("@odata.type", "#microsoft.graph.fileAttachment")
                 $AttachDetails.Add('Name',$Singleattach)
@@ -162,7 +168,25 @@ switch ($PSBoundParameters.ContainsKey('Attachments')) {
     $false {}
 }
 
+## MultiAttachment
+switch ($PSBoundParameters.ContainsKey('MultiAttachment')) {
+    $true { $Body.Message.Add('Attachments',@()) 
+            Foreach ($SingleattachinMulti In $MultiAttachment.GetEnumerator()){ 
+                $AttachmultiDetails=@{}
+                $AttachmultiDetails.Add("@odata.type", "#microsoft.graph.fileAttachment")
+                $AttachmultiDetails.Add('Name',$SingleattachinMulti.Name)
+                $AttachmultiDetails.Add('ContentType',$SingleattachinMulti.Key)
+                $AttachmultiDetails.Add('ContentBytes',[Convert]::ToBase64String([IO.File]::ReadAllBytes($SingleattachinMulti.Name)))
+                $Body.message.Attachments+=$AttachmultiDetails
+            }
 
+    }
+    $false {}
+}
+
+
+
+## No Recp is selected, the fail
 if ((!($PSBoundParameters.ContainsKey('To'))) -and (!($PSBoundParameters.ContainsKey('Bcc'))) -and (!($PSBoundParameters.ContainsKey('Bcc'))) ){
     Throw "You need to use one Address parameter To or CC or BCC"
 }
@@ -210,7 +234,7 @@ switch ($PSBoundParameters.ContainsKey('ReturnJSON')) {
 
 if ((!(Get-MgContext)) -and (!($PSBoundParameters.ContainsKey('ReturnJSON'))))
     {Throw "Please connect to Graph first"}
-Send-mgUsermail -UserId (Get-MgContext).Account -BodyParameter $Body -Debug 
+Send-mgUsermail -UserId (Get-MgContext).Account -BodyParameter $Body 
 
 }
 

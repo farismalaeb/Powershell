@@ -24,6 +24,7 @@ Send Microsoft Graph Email messaging using a simplified approach
 - [String] **Attachments**: The Attachment file path. For now it only support 1 attachment, if you want more, let me know
 - [String] **DocumentType**: The attachment MIME type, for example for text file, the DocumentType is text/plain
 - [Switch] **ReturnJSON**: This wont send the email, but instead it return the JSON file fully structured and ready so you can invoke it with any other tool.
+- [HashTable] **MultiAttachment**: Use this parameter to send more than one attachment, this parameter is a Hashtable as the following @{"Attachment Path No.1"="DocumentType";"Attachment Path No.2"="DocumentType"}. You cannot use the MultiAttachment with Attachments parameter
 
 > Beta endpoints are not included, such as Mentions.
 
@@ -35,11 +36,15 @@ Send Graph email message to multiple users with attachments and multiple To, CC 
 
 Send Graph email, load the Body from a file stored locally, make sure to use the BodyFromFile switch
 
-````Send-GraphMail -To 'vdi1@adcci.gov.ae' -Subject "Test Message" -MessageFormat HTML -Body C:\11111.csv -BodyFromFile -DeliveryReport -ReadReport -Flag -Importance High -Attachments 'C:\MyFile.txt' -DocumentType 'text/plain'````
+````Send-GraphMail -To 'ToUser@powershellcenter.com' -Subject "Test Message" -MessageFormat HTML -Body C:\11111.csv -BodyFromFile -DeliveryReport -ReadReport -Flag -Importance High -Attachments 'C:\MyFile.txt' -DocumentType 'text/plain'````
 
 Return and get how the JSON is structured without sending the Email, this is done by using the -ReturnJSON Parameter
 
-````$JSONFile=send-GraphMail -To 'vdi1@adcci.gov.ae' -Subject "Test Message" -MessageFormat HTML -Body "Hi This is New Message" -Flag -ReturnJSON````
+````$JSONFile=send-GraphMail -To 'ToUser@powershellcenter.com' -Subject "Test Message" -MessageFormat HTML -Body "Hi This is New Message" -Flag -ReturnJSON````
+
+Send Graph email including multiple attachment.
+
+````Send-GraphMail -To "ToUser@powershellcenter.com" -CC "farisnt@gmail.com" -Bcc "CCUser@powershellcenter.com" -Subject "Test V1" -MessageFormat HTML -Body "Test" -MultiAttachment @{"C:\11111.csv"="text/plain";"C:\222222.csv"="text/plain"}````
 
 ## NOTES
 
@@ -47,4 +52,4 @@ This Script wont authenticate to Graph API, make sure to use Connect-MgGraph fir
 
 ## Full help
 
-Read more about it [PowerShell Center](https://www.powershellcenter.com).
+Read more about it [PowerShell Center](https://www.powershellcenter.com/2022/09/07/powershell-script-to-simplify-send-mgusermail/).
