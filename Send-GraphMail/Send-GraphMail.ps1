@@ -1,11 +1,11 @@
 
 <#PSScriptInfo
 
-.VERSION 1.0
+.VERSION 1.1
 
 .GUID 5027146b-5a2b-498f-b873-e5f268f149ad
 
-.AUTHOR f.malaeb
+.AUTHOR Faris Malaeb
 
 .COMPANYNAME PowerShellCenter.com
 
@@ -51,6 +51,7 @@
     [String] Attachments: The Attachment file path. For now it only support 1 attachment, if you want more, let me know
     [String] DocumentType: The attachment MIME type, for example for text file, the DocumentType is text/plain
     [Switch] ReturnJSON: This wont send the email, but instead it return the JSON file fully structured and ready so you can invoke it with any other tool.
+    [HashTable] MultiAttachment: Use this parameter to send more than one attachment, this parameter is a Hashtable as the following @{"Attachment Path No.1"="DocumentType";"Attachment Path No.2"="DocumentType"}. You cannot use the MultiAttachment with Attachments parameter
     ##############
     NOT included, Beta endpoins are not included, such as Mentions.
 
