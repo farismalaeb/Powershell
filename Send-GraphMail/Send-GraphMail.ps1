@@ -1,7 +1,7 @@
 
 <#PSScriptInfo
 
-.VERSION 1.1
+.VERSION 1.2
 
 .GUID 5027146b-5a2b-498f-b873-e5f268f149ad
 
@@ -30,9 +30,10 @@
 .SYNOPSIS
    Send Microsoft Graph Email messaging using a simplified approach
 .DESCRIPTION
-    Send Microsoft Graph Email messaging using a simplified approach with support to a multiple parameters 
+    Send Microsoft Graph Email messaging using a simplified approach and similar to Send-MailMessage. Also support a multiple parameters and support multiple attachment.
+    
 .NOTES
-    This Script wont authenticate to Graph API, make sure to use Connect-MgGraph first
+    This script is no longer a function. you can use direct, no need to import it to the PowerShell workspace
 .LINK
     Specify a URI to a help page, this will show when Get-Help -Online is used.
 .PARAMETER
@@ -52,6 +53,7 @@
     [String] DocumentType: The attachment MIME type, for example for text file, the DocumentType is text/plain
     [Switch] ReturnJSON: This wont send the email, but instead it return the JSON file fully structured and ready so you can invoke it with any other tool.
     [HashTable] MultiAttachment: Use this parameter to send more than one attachment, this parameter is a Hashtable as the following @{"Attachment Path No.1"="DocumentType";"Attachment Path No.2"="DocumentType"}. You cannot use the MultiAttachment with Attachments parameter
+    [Switch] GraphDebug: Return the debug log for the process
     ##############
     NOT included, Beta endpoins are not included, such as Mentions.
 
@@ -60,16 +62,16 @@ Send Graph email message to multiple users with attachments and multiple To, CC 
 Send-GraphMail -To @('user1@domain.com','user2@domain.com') -CC @('cc@domain.com','cc1@domain.com) -Bcc "bcc@domain.com" -Subject "Test Message" -MessageFormat HTML -Body 'This is the Message Body' -DeliveryReport -ReadReport -Flag -Importance High -Attachments C:\MyFile.txt -DocumentType 'text/plain'
 
 Send Graph email, load the Body from a file stored locally, make sure to use the BodyFromFile switch
-send-GraphMail -To 'vdi1@adcci.gov.ae' -Subject "Test Message" -MessageFormat HTML -Body C:\11111.csv -BodyFromFile -DeliveryReport -ReadReport -Flag -Importance High -Attachments 'C:\MyFile.txt' -DocumentType 'text/plain'
+send-GraphMail -To 'user1@domain.com' -Subject "Test Message" -MessageFormat HTML -Body C:\11111.csv -BodyFromFile -DeliveryReport -ReadReport -Flag -Importance High -Attachments 'C:\MyFile.txt' -DocumentType 'text/plain'
 
 Return and get how the JSON is structured without sending the Email, this is done by using the -ReturnJSON Parameter
-$JSONFile=send-GraphMail -To 'vdi1@adcci.gov.ae' -Subject "Test Message" -MessageFormat HTML -Body "Hi This is New Message" -Flag -ReturnJSON
+$JSONFile=Send-GraphMail -To 'user1@domain.com' -Subject "Test Message" -MessageFormat HTML -Body "Hi This is New Message" -Flag -ReturnJSON
 
 Send Graph email including multiple attachment.
 Send-GraphMail -To "ToUser@powershellcenter.com" -CC "farisnt@gmail.com" -Bcc "CCUser@powershellcenter.com" -Subject "Test V1" -MessageFormat HTML -Body "Test" -MultiAttachment @{"C:\11111.csv"="text/plain";"C:\222222.csv"="text/plain"}
 
 #> 
-Function Send-GraphMail {
+
     [CmdletBinding()]
     param (
         [Parameter(Mandatory=$false)]
@@ -95,6 +97,7 @@ Function Send-GraphMail {
         [Parameter(Mandatory=$false,ParameterSetName='Attach')]$Attachments,
         [Parameter(Mandatory=$True,ParameterSetName='Attach')]$DocumentType,
         [Parameter(Mandatory=$false)][switch]$ReturnJSON,
+        [Parameter(Mandatory=$false)][switch]$GraphDebug,
         [Parameter(Mandatory=$True,ParameterSetName='Attachmore')][Hashtable]$MultiAttachment
 
     )
@@ -235,7 +238,11 @@ switch ($PSBoundParameters.ContainsKey('ReturnJSON')) {
 
 if ((!(Get-MgContext)) -and (!($PSBoundParameters.ContainsKey('ReturnJSON'))))
     {Throw "Please connect to Graph first"}
-Send-mgUsermail -UserId (Get-MgContext).Account -BodyParameter $Body 
 
-}
+    switch ($PSBoundParameters.ContainsKey('GraphDebug')) {
+        $true  { Send-mgUsermail -UserId (Get-MgContext).Account -BodyParameter $Body -Debug -Confirm:$false }
+        $false { Send-mgUsermail -UserId (Get-MgContext).Account -BodyParameter  }
+    }
+ 
+
 
