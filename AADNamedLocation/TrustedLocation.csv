@@ -1,0 +1,3 @@
+DisplayName,IPRange,MarkAsTrusted
+Location2,4.4.4.4/24,1
+Location1,1.1.1.1/24-2.2.2.2/24-3.3.3.3/24,0

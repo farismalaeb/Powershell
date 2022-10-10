@@ -76,7 +76,7 @@ param(
         Write-Host "No Active Session found, creating new session"
         $ExOnPremPCred=Get-Credential -Message "Please Type the username and password for Local Exchange" -ErrorAction Stop
         $OnPremSession=New-PSSession -ConnectionUri ("http://$OnPremExchangeServer/powershell") -Authentication $Authentication -ConfigurationName microsoft.exchange -AllowRedirection -ErrorAction Stop -Credential $ExOnPremPCred
-        $ImportSession=Import-PSSession -Prefix exp -DisableNameChecking -Session $OnPremSession
+        $ImportSession=Import-PSSession -Prefix exp -DisableNameChecking -Session $OnPremSession -AllowClobber
         Write-Host "Session Created..." -ForegroundColor Green
         return "Active Session Created" | Out-Null
     }
@@ -164,7 +164,7 @@ $ExServer,$AuthMethod)
     [System.Collections.ArrayList]$OnPremResults=@()
 
     Write-Host "Reading Local Distribution Groups, Please wait..."
-    $LocalDist=Get-expDistributionGroup
+    $LocalDist=Get-expDistributionGroup | select -First 3
     $LocalDist.foreach({
     Write-Host "Reading $($_.name) Information..." -ForegroundColor Green 
     $OnPremPermission=[pscustomobject]@{OnPremGroupName=''
