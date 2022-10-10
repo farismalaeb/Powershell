@@ -48,7 +48,7 @@ Send Graph email including multiple attachment.
 
 ## NOTES
 
-This Script wont authenticate to Graph API, make sure to use Connect-MgGraph first
+This script will authenticate with the correct right scope.
 
 ## Full help
 

@@ -1,7 +1,7 @@
 
 <#PSScriptInfo
 
-.VERSION 1.2
+.VERSION 1.2.4
 
 .GUID 5027146b-5a2b-498f-b873-e5f268f149ad
 
@@ -30,8 +30,9 @@
 .SYNOPSIS
    Send Microsoft Graph Email messaging using a simplified approach
 .DESCRIPTION
-    Send Microsoft Graph Email messaging using a simplified approach and similar to Send-MailMessage. Also support a multiple parameters and support multiple attachment.
-    
+    Send Microsoft Graph Email messaging using a simplified approach and similar to Send-MailMessage. Also support a multiple parameters and support multiple attachment. Also it support sending from Microsoft Personal account
+    Supported Parameters are: To, Bcc, CC, Subject, MessageFormat, Body, BodyFromFile, DeliveryReport, ReadReport, Flag, Importance, Attachments, DocumentType, ReturnJSON, MultiAttachment, GraphDebug
+    Check the details here https://www.powershellcenter.com/2022/09/07/powershell-script-to-simplify-send-mgusermail/
 .NOTES
     This script is no longer a function. you can use direct, no need to import it to the PowerShell workspace
 .LINK
@@ -102,7 +103,7 @@ Send-GraphMail -To "ToUser@powershellcenter.com" -CC "farisnt@gmail.com" -Bcc "C
 
     )
 
- $Body=[ordered]@{} 
+$Body=[ordered]@{} 
 $Body.Message=@{}
 
 ## Body Subject Parameter
@@ -188,8 +189,6 @@ switch ($PSBoundParameters.ContainsKey('MultiAttachment')) {
     $false {}
 }
 
-
-
 ## No Recp is selected, the fail
 if ((!($PSBoundParameters.ContainsKey('To'))) -and (!($PSBoundParameters.ContainsKey('Bcc'))) -and (!($PSBoundParameters.ContainsKey('Bcc'))) ){
     Throw "You need to use one Address parameter To or CC or BCC"
@@ -232,16 +231,22 @@ switch ($PSBoundParameters.ContainsKey('ReturnStructure')) {
 
 switch ($PSBoundParameters.ContainsKey('ReturnJSON')) {
     $true { return  ($Body | ConvertTo-Json -Depth 100)  }
-    $false {}
+    $false {
+        try{
+        Import-module Microsoft.Graph.Authentication
+        Connect-MgGraph -Scopes @('Mail.Send')
+        }
+        Catch{
+            $_.Exception.Message
+        }
+    }
 }
 
 
-if ((!(Get-MgContext)) -and (!($PSBoundParameters.ContainsKey('ReturnJSON'))))
-    {Throw "Please connect to Graph first"}
 
     switch ($PSBoundParameters.ContainsKey('GraphDebug')) {
-        $true  { Send-mgUsermail -UserId (Get-MgContext).Account -BodyParameter $Body -Debug -Confirm:$false }
-        $false { Send-mgUsermail -UserId (Get-MgContext).Account -BodyParameter  }
+        $true  { Invoke-GraphRequest -Uri 'https://graph.microsoft.com/v1.0/me/sendMail' -Method POST -Body $Body -Debug }
+        $false { Invoke-GraphRequest -Uri 'https://graph.microsoft.com/v1.0/me/sendMail' -Method POST -Body $Body  }
     }
  
 
