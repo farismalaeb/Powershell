@@ -11,7 +11,7 @@
 
 .COPYRIGHT 2022
 
-.TAGS Send-GraphMail
+.TAGS Send-GraphMail,Mail, Graph API, Send-MgUserMail
 
 .LICENSEURI 
 
@@ -31,8 +31,6 @@
    Send Microsoft Graph Email messaging using a simplified approach
 .DESCRIPTION
     Send Microsoft Graph Email messaging using a simplified approach and similar to Send-MailMessage. Also support a multiple parameters and support multiple attachment. Also it support sending from Microsoft Personal account
-    Supported Parameters are: To, Bcc, CC, Subject, MessageFormat, Body, BodyFromFile, DeliveryReport, ReadReport, Flag, Importance, Attachments, DocumentType, ReturnJSON, MultiAttachment, GraphDebug
-    Check the details here https://www.powershellcenter.com/2022/09/07/powershell-script-to-simplify-send-mgusermail/
 .NOTES
     This script is no longer a function. you can use direct, no need to import it to the PowerShell workspace
 .LINK
