@@ -106,7 +106,7 @@ $Body.Message=@{}
 
 ## Body Subject Parameter
 switch ($PSBoundParameters.ContainsKey('Subject')) {
-    $true { $Body.Message.Add('Subject',"MySubject") }
+    $true { $Body.Message.Add('Subject',$Subject) }
     $false {}
 }
 ## DeliveryReport
