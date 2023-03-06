@@ -88,9 +88,6 @@ $Fullresult+=$results
 }
 
 }
-Write-Host "`nThe Full result are as the following"
-return $Fullresult 
-
     if ($PSBoundParameters.Keys -like "SaveAsTo"){
     try{
         $Fullresult | Export-Csv -Path $SaveAsTo -NoTypeInformation
@@ -120,3 +117,5 @@ return $Fullresult
     }
  
 
+    Write-Host "`nThe Full result are as the following"
+    return $Fullresult 
