@@ -1,5 +1,5 @@
 ﻿<#PSScriptInfo
-.VERSION 2.2
+.VERSION 2.3
 .AUTHOR Faris Malaeb
 .PROJECTURI https://www.powershellcenter.com/
 .DESCRIPTION 
@@ -43,7 +43,8 @@ Function Start-EMMDAGEnabled {
         [parameter(mandatory=$false)][ValidatePattern("(?=^.{1,254}$)(^(?:(?!\d+\.|-)[a-zA-Z0-9_\-]{1,63}(?<!-)\.?)+(?:[a-zA-Z]{2,})$)")][string]$ReplacementServerFQDN,
         [parameter(Mandatory=$false)][switch]$IgnoreQueue,
         [parameter(Mandatory=$false)][switch]$IgnoreCluster,
-        [parameter(Mandatory=$false)][switch]$SkipDatabaseHealthCheck
+        [parameter(Mandatory=$false)][switch]$SkipDatabaseHealthCheck,
+        [parameter(Mandatory=$false)][switch]$DisableMSExchangeFrontEndTransport
 
     )
 
@@ -77,7 +78,13 @@ Function Start-EMMDAGEnabled {
                 }
                 }
                 }
-                
+            Switch($PSBoundParameters.Containskey('DisableMSExchangeFrontEndTransport')){
+
+                $true {AddEmptylines -numberoflines 2 -MessageToIncludeAtTheEnd "Stopping SMTP and shutting down MSExchangeFrontEnd Transport Service." -MessageColor Yellow -ProgressState "Stopping SMTP" -ProgressPercent 100
+                (Get-WmiObject -ComputerName $PSBoundParameters['ServerForMaintenance'] -Query 'select * from win32_service where name like "MSExchangeFrontEndTransport"').stopService() 
+                }
+            }
+
             Switch($PSBoundParameters.Containskey('IgnoreCluster')){
                         $true { AddEmptylines -numberoflines 2 -MessageToIncludeAtTheEnd "Skipping Cluster MGMT as user requests." -MessageColor Yellow -ProgressState "Skipping Cluster" -ProgressPercent 50
                                 $step3="Skipped"}
@@ -140,8 +147,8 @@ Function Stop-EMMDAGEnabled {
     Param(
         [parameter(mandatory=$false,ValueFromPipeline=$true,Position=0)]$ServerInMaintenance,
         [parameter(Mandatory=$false)][switch]$IgnoreCluster,
-        [parameter(mandatory=$false)][validateset("IntrasiteOnly","Unrestricted")]$ServerActivationMode="Unrestricted"
-        
+        [parameter(mandatory=$false)][validateset("IntrasiteOnly","Unrestricted")]$ServerActivationMode="Unrestricted",
+        [parameter(Mandatory=$false)][switch]$EnableMSExchangeFrontEndTransport
     )
 
         Begin{
@@ -159,6 +166,12 @@ Function Stop-EMMDAGEnabled {
                 $false {$outstep1=Set-EMMClusterConfig -ClusterNode $PSBoundParameters['ServerInMaintenance'] -PauseOrResume ResumeThisNode}
             }
 
+            Switch($PSBoundParameters.Containskey('EnableMSExchangeFrontEndTransport')){
+
+                $true {AddEmptylines -numberoflines 2 -MessageToIncludeAtTheEnd "Start SMTP and starting down MSExchangeFrontEnd Transport Service." -MessageColor Yellow -ProgressState "Starting SMTP" -ProgressPercent 100
+                (Get-WmiObject -ComputerName $PSBoundParameters['ServerForMaintenance'] -Query 'select * from win32_service where name like "MSExchangeFrontEndTransport"').startService() 
+                }
+            }
             $outStep2=Set-EMMDBActivationMoveNow -ServerName $PSBoundParameters['ServerInMaintenance'] -ActivationMode $ServerActivationMode
             AddEmptylines -numberoflines 2 -MessageToIncludeAtTheEnd "Enabling HubTransport Components..." -MessageColor Yellow -ProgressState "Enabling HubTransport..." -ProgressPercent 60
             $outStep3=Set-EMMHubTransportState -Servername $PSBoundParameters['ServerInMaintenance'] -Status Active
