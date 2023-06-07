@@ -731,7 +731,10 @@ Write-host "If loading failed, then start this script from Exchnage Management S
 try{
     Import-Module $env:ExchangeInstallPath\bin\RemoteExchange.ps1 -ErrorAction Stop
     Connect-ExchangeServer -Auto -ClientApplication:ManagementShell
-
+    Write-Host "Importing NetTCPIP Module"
+    Import-Module NetTCPIP
+    Write-Host "Importing Failover Cluster..."
+    Import-Module FailoverClusters
  }
 catch{
 Write-Warning "Ops, something went wrong, are you sure you have Exchange Management Shell installed ?!`n"
