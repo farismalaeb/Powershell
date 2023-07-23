@@ -6,7 +6,8 @@
         [Parameter(Mandatory=$false,
                    ValueFromPipelineByPropertyName=$true,
                    Position=0)]
-        $Name
+        $Name,
+        [parameter(mandatory=$false)][switch]$IgnoreError
         
 
     )
@@ -20,7 +21,9 @@
         Try{
            [System.Collections.ArrayList]$fullList=@()
     $queryresult=query user /server:$($Name) 2> $Null
-    if (!($queryresult)){Write-host "It Seems there was an issue for $($Name)`n Or there is no active session The Error is $($Error[0])" -ForegroundColor Red}
+
+    if ((!($queryresult) -and (!($PSBoundParameters.ContainsKey('IgnoreError')))) ){Write-host "It Seems there was an issue for $($Name)`n Or there is no active session The Error is $($Error[0])" -ForegroundColor Red}
+
     Else{
             Foreach ($resultline in ($queryresult | Select-Object -Skip 1)){
                 $Parsedline=$resultline.Split(" ",[System.StringSplitOptions]::RemoveEmptyEntries)
