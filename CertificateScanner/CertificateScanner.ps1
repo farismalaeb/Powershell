@@ -1,5 +1,5 @@
 <#PSScriptInfo
-.VERSION 2.0.0.0
+.VERSION 2.1.0.0
 .GUID 163f0d06-5bef-4d9a-bf8b-0c353b92ffc0
 .AUTHOR Faris Malaeb
 .COMPANYNAME powershellcenter.com
@@ -18,11 +18,14 @@
 <# 
 .DESCRIPTION 
  Scan website/IP for certificate details, including Expiration date, issuer date, URL, CN, the script also can run the scan using an old protocol such as SSLv3 for old webservers. 
- Update 28-Feb-2023
+ Update 29-Feb-2023
  SiteToScan parameter added to scan on the fly without having to load from file
  If the site running certificate on a different port the script scan that port, but you need to set the port number using color
  Default protocol is set by default to TLS12
  Minor enhancement in the processing
+ Example:
+ .\CertificateScanner.ps1 -SiteToScan www.powershellcenter.com
+ .\CertificateScanner.ps1 -SiteToScan www.powershellcenter.com -SaveAsTo C:\MyFile
 #> 
 [CmdletBinding(DefaultParameterSetName='Default')]
 param(
