@@ -31,12 +31,24 @@ param(
 [parameter(mandatory=$true,ParameterSetName="Online")]$SiteToScan,
 [parameter(mandatory=$false)]
 [validateset("Tls","Tls11","Tls12","Ssl3","Default")]$ProtocolVersion='TLS12',
-[parameter(mandatory=$false,ParameterSetName="ReadFromFile")]$SaveAsTo,
+[parameter(mandatory=$false)]$SaveAsTo,
+[parameter(ParameterSetName="ReadFromFile")]
+[parameter(ParameterSetName="Online")]
 [parameter(mandatory=$true,ParameterSetName="email")]$EmailSendTo,
+[parameter(ParameterSetName="ReadFromFile")]
+[parameter(ParameterSetName="Online")]
 [parameter(mandatory=$true,ParameterSetName="email")]$EmailFrom,
+[parameter(ParameterSetName="ReadFromFile")]
+[parameter(ParameterSetName="Online")]
 [parameter(mandatory=$true,ParameterSetName="email")]$EmailSMTPServer,
+[parameter(ParameterSetName="ReadFromFile")]
+[parameter(ParameterSetName="Online")]
 [parameter(mandatory=$false,ParameterSetName="email")]$EmailSMTPServerPort="25",
+[parameter(ParameterSetName="ReadFromFile")]
+[parameter(ParameterSetName="Online")]
 [parameter(mandatory=$false,ParameterSetName="email")][switch]$EmailSMTPServerSSL=$false,
+[parameter(ParameterSetName="ReadFromFile")]
+[parameter(ParameterSetName="Online")]
 [parameter(mandatory=$true,ParameterSetName="email")]$EmailSubject
 )
 
@@ -100,10 +112,33 @@ Function ScanSiteInformaiton{
     Return $results
 }
 
+Function SendMailToTheInternet{
+    try{
+    $SendMail=@{
+    From=$EmailFrom
+    To =$EmailSendTo
+    Subject =$EmailSubject
+    Body =($Fullresult | Out-String)
+    SmtpServer =$EmailSMTPServer 
+    Credential =(Get-Credential)
+    Port= $EmailSMTPServerPort
+    UseSsl = $EmailSMTPServerSSL
+    }
+     Write-Host "Sending Email ...[][][]"
+     Send-MailMessage @sendmail
+     Write-Host "Email Sent ...>>>>"
+     }
+     Catch{
+     Throw $_.exception.message 
+     }
+ }
 
+
+ 
 
 ## Start for File Load and Scan
 if ($PSCmdlet.ParameterSetName -eq "ReadFromFile") {
+$PScmdlet.ParameterSetName
     if (!(Test-Path $LoadFromFile)){Throw "Incorrect Source Path."}
     $Fullresult=@()
     $CertificateList=Get-Content -Path $LoadFromFile
@@ -111,19 +146,24 @@ if ($PSCmdlet.ParameterSetName -eq "ReadFromFile") {
     $siteresults=ScanSiteInformaiton -URLScanSiteInfo $url
     $Fullresult+=$siteresults
     }
+    if ($PSBoundParameters.Keys -like "SaveAsTo"){
+        try{
+            $Fullresult | Export-Csv -Path $SaveAsTo -NoTypeInformation
+            }
+            catch{
+            Throw $_.exception.message
+            }
+        }
+        if (($PSBoundParameters.Keys -like "*email*")){
+            SendMailToTheInternet
+            }
     return $Fullresult 
 }
 
 if ($pscmdlet.ParameterSetName -eq "Online") {
-if (($SiteToScan.gettype()).BaseType -like "*Array"){ }#LOOOOP all}
 
    $Fullresult=ScanSiteInformaiton -URLScanSiteInfo $SiteToScan 
-   return $Fullresult 
-}
-
-
-
-    if ($PSBoundParameters.Keys -like "SaveAsTo"){
+   if ($PSBoundParameters.Keys -like "SaveAsTo"){
     try{
         $Fullresult | Export-Csv -Path $SaveAsTo -NoTypeInformation
         }
@@ -131,27 +171,16 @@ if (($SiteToScan.gettype()).BaseType -like "*Array"){ }#LOOOOP all}
         Throw $_.exception.message
         }
     }
-  
-    if (($PSCmdlet.ParameterSetName -like "email") -and (($PSBoundParameters.Keys -like "SaveAsTo")  -or ($PSBoundParameters.Keys -like "Online"))){
-       try{
-       $SendMail=@{
-       From=$EmailFrom
-       To =$EmailSendTo
-       Subject =$EmailSubject
-       Body =($Fullresult | Out-String)
-       SmtpServer =$EmailSMTPServer 
-       Credential =(Get-Credential)
-       Port= $EmailSMTPServerPort
-       UseSsl = $EmailSMTPServerSSL
-       }
-        Write-Host "Sending Email ...[][][]"
-        Send-MailMessage @sendmail
-        Write-Host "Email Sent ...>>>>"
-        }
-        Catch{
-        Throw $_.exception.message 
-        }
+    if (($PSBoundParameters.Keys -like "*email*")){
+    SendMailToTheInternet
     }
+   return $Fullresult 
+}
+
+
+
  
+  
+    
    
  
