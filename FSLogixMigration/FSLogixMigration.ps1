@@ -4,7 +4,7 @@ The intend is for moving users data from one VDI environment to another.
 
 Requirements:
 - Run it anywhere it have access to Old FSLogix User container.
-- The Script shoule run under any account that can access user profile in an Active XenDesktop session
+- The Script should run under any account that can access user profile in an Active XenDesktop session
    This is mean that the script will copy the data from the old FSLogix to the users active VDI session
 - Citrix.XenDesktop.Admin PowerShell Module.
 - Run this script as Administrator.
