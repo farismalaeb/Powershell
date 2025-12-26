@@ -1,5 +1,5 @@
-﻿<#PSScriptInfo
-.VERSION 3.9.0.0
+<#PSScriptInfo
+.VERSION 3.9.2.0
 .GUID 163f0d06-5bef-4d9a-bf8b-0c353b92ffc0
 .AUTHOR Faris Malaeb
 .IMPROVEMENT Alessandro Tanino
@@ -57,69 +57,83 @@ Display help and syntax information
 
 [CmdletBinding(DefaultParameterSetName='Help')]
 param(
+    # Core scanning parameters
     [Alias("FilePath")]
     [parameter(mandatory=$true,ParameterSetName="ReadFromFile")]$LoadFromFile,
     [parameter(mandatory=$true,ParameterSetName="Online")]$SiteToScan,
     [parameter(mandatory=$true,ParameterSetName="NetworkScan")]$Networks,
-    [parameter(mandatory=$false)]
+    
+    # Common parameters for all scanning operations
+    [parameter(ParameterSetName="ReadFromFile")]
+    [parameter(ParameterSetName="Online")]
+    [parameter(ParameterSetName="NetworkScan")]
     [validateset("Tls","Tls11","Tls12","Ssl3","Default")]$ProtocolVersion='TLS12',
-    [parameter(mandatory=$false)]
-    [Parameter(ParameterSetName="ReadFromFile")]
-    [Parameter(ParameterSetName="Online")]
-    [Parameter(ParameterSetName="NetworkScan")]$SaveAsTo,
+    
+    [parameter(ParameterSetName="ReadFromFile")]
+    [parameter(ParameterSetName="Online")]
+    [parameter(ParameterSetName="NetworkScan")]$SaveAsTo,
+    
+    [parameter(ParameterSetName="ReadFromFile")]
+    [parameter(ParameterSetName="Online")]
+    [parameter(ParameterSetName="NetworkScan")]$TimeoutSeconds=5,
+    
     [parameter(ParameterSetName="ReadFromFile")]
     [parameter(ParameterSetName="Online")]
     [parameter(ParameterSetName="NetworkScan")]
-    [parameter(mandatory=$true,ParameterSetName="email")]$EmailSendTo,
+    [switch]$IncludeReverseDNS,
+    
     [parameter(ParameterSetName="ReadFromFile")]
     [parameter(ParameterSetName="Online")]
     [parameter(ParameterSetName="NetworkScan")]
-    [parameter(mandatory=$true,ParameterSetName="email")]$EmailFrom,
-    [parameter(ParameterSetName="ReadFromFile")]
-    [parameter(ParameterSetName="Online")]
-    [parameter(ParameterSetName="NetworkScan")]
-    [parameter(mandatory=$true,ParameterSetName="email")]$EmailSMTPServer,
-    [parameter(ParameterSetName="ReadFromFile")]
-    [parameter(ParameterSetName="Online")]
-    [parameter(ParameterSetName="NetworkScan")]
-    [parameter(mandatory=$false,ParameterSetName="email")]$EmailSMTPServerPort="25",
-    [parameter(ParameterSetName="ReadFromFile")]
-    [parameter(ParameterSetName="Online")]
-    [parameter(ParameterSetName="NetworkScan")]
-    [parameter(mandatory=$false,ParameterSetName="email")][switch]$EmailSMTPServerSSL=$false,
-    [parameter(ParameterSetName="ReadFromFile")]
-    [parameter(ParameterSetName="Online")]
-    [parameter(ParameterSetName="NetworkScan")]
-    [parameter(mandatory=$true,ParameterSetName="email")]$EmailSubject,
-    [parameter(ParameterSetName="NetworkScan")]
-    [parameter(mandatory=$false)]$Port=443,
-    [parameter(ParameterSetName="NetworkScan")]
-    [parameter(mandatory=$false)]$AdditionalHTTPSPorts=@(),
-    [parameter(ParameterSetName="NetworkScan")]
-    [parameter(mandatory=$false)]$TimeoutSeconds=5,
-    [parameter(ParameterSetName="NetworkScan")]
-    [parameter(mandatory=$false)]$MaxThreads=10,
-    [parameter(ParameterSetName="NetworkScan")]
-    [parameter(mandatory=$false)][switch]$IncludeLDAPS=$false,
-    [parameter(ParameterSetName="NetworkScan")]
-    [parameter(mandatory=$false)][switch]$LDAPSOnly=$false,
-    [parameter(ParameterSetName="ReadFromFile")]
-    [parameter(ParameterSetName="Online")]
-    [parameter(ParameterSetName="NetworkScan")]
-    [parameter(mandatory=$false)][switch]$IncludeReverseDNS,
-    [parameter(ParameterSetName="ReadFromFile")]
-    [parameter(ParameterSetName="Online")]
-    [parameter(ParameterSetName="NetworkScan")]
-    [parameter(mandatory=$false)]
     [string]$DnsServer,
+    
     [parameter(ParameterSetName="ReadFromFile")]
     [parameter(ParameterSetName="Online")]
     [parameter(ParameterSetName="NetworkScan")]
     [int]$ExpiresInDays = $null,
+    
     [parameter(ParameterSetName="ReadFromFile")]
     [parameter(ParameterSetName="Online")]
     [parameter(ParameterSetName="NetworkScan")]
-    [parameter(mandatory=$false)][switch]$GetOsType,
+    [switch]$GetOsType,
+    
+    [parameter(ParameterSetName="ReadFromFile")]
+    [parameter(ParameterSetName="Online")]
+    [parameter(ParameterSetName="NetworkScan")]
+    [switch]$ExcludeExpired,
+    
+    # Email parameters (all scanning types support email)
+    [parameter(ParameterSetName="ReadFromFile")]
+    [parameter(ParameterSetName="Online")]
+    [parameter(ParameterSetName="NetworkScan")]$EmailSendTo,
+    
+    [parameter(ParameterSetName="ReadFromFile")]
+    [parameter(ParameterSetName="Online")]
+    [parameter(ParameterSetName="NetworkScan")]$EmailFrom,
+    
+    [parameter(ParameterSetName="ReadFromFile")]
+    [parameter(ParameterSetName="Online")]
+    [parameter(ParameterSetName="NetworkScan")]$EmailSMTPServer,
+    
+    [parameter(ParameterSetName="ReadFromFile")]
+    [parameter(ParameterSetName="Online")]
+    [parameter(ParameterSetName="NetworkScan")]$EmailSMTPServerPort="25",
+    
+    [parameter(ParameterSetName="ReadFromFile")]
+    [parameter(ParameterSetName="Online")]
+    [parameter(ParameterSetName="NetworkScan")]
+    [switch]$EmailSMTPServerSSL=$false,
+    
+    [parameter(ParameterSetName="ReadFromFile")]
+    [parameter(ParameterSetName="Online")]
+    [parameter(ParameterSetName="NetworkScan")]$EmailSubject,
+    
+    # Network scan specific parameters
+    [parameter(ParameterSetName="NetworkScan")]$Port=443,
+    [parameter(ParameterSetName="NetworkScan")]$AdditionalHTTPSPorts=@(),
+    [parameter(ParameterSetName="NetworkScan")]$MaxThreads=10,
+    [parameter(ParameterSetName="NetworkScan")][switch]$IncludeLDAPS=$false,
+    [parameter(ParameterSetName="NetworkScan")][switch]$LDAPSOnly=$false,
     
     # Help parameters
     [parameter(ParameterSetName="Help")]
@@ -135,7 +149,7 @@ Function Show-Help {
     Write-Host @"
 
 ╔══════════════════════════════════════════════════════════════════════════════════════╗
-║                          SSL/TLS Certificate Scanner v3.9.0                          ║
+║                          SSL/TLS Certificate Scanner v3.9.2.0                        ║
 ║                     Network Discovery & Certificate Analysis Tool                    ║
 ╚══════════════════════════════════════════════════════════════════════════════════════╝
 
@@ -175,6 +189,7 @@ PARAMETERS
     -TimeoutSeconds <Int>        Connection timeout in seconds (default: 5)
     -MaxThreads <Int>           Parallel scanning threads (default: 10)
     -ExpiresInDays <Int>        Filter certificates expiring in X days (0 = expired only)
+    -ExcludeExpired              Exclude already expired certificates from results
     -SaveAsTo <String>          CSV output file (use +filename to append)
     -IncludeLDAPS               Include LDAPS (port 636) scanning
     -LDAPSOnly                  Scan only LDAPS certificates
@@ -725,8 +740,16 @@ Function ScanSiteInformaiton{
         $ServiceType = "HTTPS",
         [switch]$IncludeReverseDNS,
         [switch]$GetOsType,
-        [string]$DnsServer
+        [string]$DnsServer = $null,  # Fixed parameter name to match usage
+        [int]$TimeoutSeconds = 5,
+        [int]$ExpiresInDays = $null,
+        [string]$ProtocolVersion = 'TLS12'
     )
+    
+    # Convert TimeoutSeconds to milliseconds if provided
+    if ($PSBoundParameters.ContainsKey('TimeoutSeconds')) {
+        $TimeoutMs = $TimeoutSeconds * 1000
+    }
     
     # Clean up URL - remove protocol if present
     if ($URLScanSiteInfo -match '([a-z]+|[A-Z]+):\/\/'){
@@ -757,7 +780,7 @@ Function ScanSiteInformaiton{
         return Get-LDAPSCertificate -ServerName $URLScanSite -Port $PortToScan -TimeoutMs $TimeoutMs -ProtocolVersion $ProtocolVersion -IncludeReverseDNS:$IncludeReverseDNS -GetOsType:$GetOsType -DnsServer $DnsServer
     }
 
-    # Initialize results object outside the Try/Catch to ensure it s always available
+    # Initialize results object outside the Try/Catch to ensure it's always available
     $results=[PSCustomObject]@{
         URL=$URLScanSiteInfo
         Port=$PortToScan
@@ -770,10 +793,13 @@ Function ScanSiteInformaiton{
         Status="Unknown"
         ThreadId = [System.Threading.Thread]::CurrentThread.ManagedThreadId
         ReverseDNSName = $reverseDNS
+        DNSServer = if ($DnsServer) { $DnsServer } else { "System DNS" }
         OSType = ''
         OSDetails = ''
         OSDetectionMethod = ''
         OSConfidence = ''
+        DaysUntilExpiration = $null
+        ExpirationStatus = ''
     }
 
     Try{
@@ -793,7 +819,18 @@ Function ScanSiteInformaiton{
 
         $stream = $socket.GetStream()
         $sslStream = New-Object System.Net.Security.SslStream($stream, $false, ({ $True } -as [Net.Security.RemoteCertificateValidationCallback]))
-        $sslStream.AuthenticateAsClient($URLScanSite, $null, [System.Security.Authentication.SslProtocols]$ProtocolVersion, $false)
+        
+        # Map protocol version string to enum - FIXED MAPPING
+        $protocolEnum = switch ($ProtocolVersion) {
+            'Ssl3' { [System.Security.Authentication.SslProtocols]::Ssl3 }
+            'Tls' { [System.Security.Authentication.SslProtocols]::Tls }
+            'Tls11' { [System.Security.Authentication.SslProtocols]::Tls11 }
+            'Tls12' { [System.Security.Authentication.SslProtocols]::Tls12 }
+            'Default' { [System.Security.Authentication.SslProtocols]::Default }
+            default { [System.Security.Authentication.SslProtocols]::Tls12 }
+        }
+        
+        $sslStream.AuthenticateAsClient($URLScanSite, $null, $protocolEnum, $false)
 
         # Populate certificate details
         $results.StartDate = $sslStream.RemoteCertificate.NotBefore
@@ -801,6 +838,23 @@ Function ScanSiteInformaiton{
         $results.Issuer=$sslStream.RemoteCertificate.Issuer
         $results.Subject=$sslStream.RemoteCertificate.Subject
         $results.Status = "Success"
+
+        # Calculate days until expiration if ExpiresInDays parameter was provided
+        if ($PSBoundParameters.ContainsKey('ExpiresInDays')) {
+            $today = (Get-Date).Date
+            $certEndDate = [datetime]$sslStream.RemoteCertificate.NotAfter
+            $daysUntilExpiration = ($certEndDate.Date - $today).Days
+            $results.DaysUntilExpiration = $daysUntilExpiration
+            
+            # Set expiration status
+            if ($daysUntilExpiration -lt 0) {
+                $results.ExpirationStatus = "EXPIRED"
+            } elseif ($daysUntilExpiration -le $ExpiresInDays) {
+                $results.ExpirationStatus = "EXPIRING SOON"
+            } else {
+                $results.ExpirationStatus = "OK"
+            }
+        }
 
         $socket.close()
         
@@ -825,7 +879,57 @@ Function ScanSiteInformaiton{
         $results.Status = "Error"
     }
 
+    # Apply expiration filtering if ExpiresInDays was specified
+    if ($PSBoundParameters.ContainsKey('ExpiresInDays') -and $results.Status -eq "Success") {
+        $today = (Get-Date).Date
+        $certEndDate = [datetime]$results.EndDate
+        $daysUntilExpiration = ($certEndDate.Date - $today).Days
+        
+        # Only return results that meet the expiration criteria
+        if ($ExpiresInDays -eq 0) {
+            # Show only expired certificates
+            if ($daysUntilExpiration -ge 0) {
+                return $null # Certificate not expired, don't return it
+            }
+        } else {
+            # Show certificates expiring within specified days
+            if ($daysUntilExpiration -gt $ExpiresInDays) {
+                return $null # Certificate expires too far in the future, don't return it
+            }
+        }
+    }
+
     Return $results
+}
+
+# Example usage:
+# ScanSiteInformaiton -URLScanSiteInfo "example.com" -IncludeReverseDNS -DNSServer "10.185.16.4" -GetOsType -TimeoutSeconds 4 -ExpiresInDays 60
+
+# You'll also need this helper function for reverse DNS lookups:
+Function Get-ReverseDnsName {
+    param(
+        [string]$IPAddress,
+        [string]$DnsServer = $null
+    )
+    
+    try {
+        if ($DnsServer) {
+            # Use specified DNS server
+            $result = Resolve-DnsName -Name $IPAddress -Server $DnsServer -Type PTR -ErrorAction Stop -DnsOnly
+            if ($result -and $result.NameHost) {
+                return $result.NameHost
+            }
+        } else {
+            # Use system DNS
+            $hostEntry = [System.Net.Dns]::GetHostEntry($IPAddress)
+            return $hostEntry.HostName
+        }
+    }
+    catch {
+        return "DNS lookup failed: $($_.Exception.Message)"
+    }
+    
+    return "No reverse DNS record found"
 }
 
 Function Invoke-ParallelScan {
@@ -961,189 +1065,227 @@ Function Invoke-ParallelScan {
         }
 
         Function Get-LDAPSCertificateInternal {
-            param(
-                [string]$ServerName,
-                [int]$Port = 636,
-                [int]$TimeoutMs = 5000,
-                [string]$ProtocolVersion = "TLS12",
-                [switch]$IncludeReverseDNS,
-                [switch]$GetOsType,
-                [string]$DnsServer
-            )
-            
-            $reverseDNS = ""
-            if ($IncludeReverseDNS) {
-                $reverseDNS = Get-ReverseDnsNameInternal -IPAddress $ServerName -DnsServer $DnsServer
-            }
+    param(
+        [string]$ServerName,
+        [int]$Port = 636,
+        [int]$TimeoutMs = 5000,
+        [string]$ProtocolVersion = "TLS12",
+        [switch]$IncludeReverseDNS,
+        [switch]$GetOsType,
+        [string]$DnsServer
+    )
+    
+    $reverseDNS = ""
+    if ($IncludeReverseDNS) {
+        $reverseDNS = Get-ReverseDnsNameInternal -IPAddress $ServerName -DnsServer $DnsServer
+    }
 
-            $results = [PSCustomObject]@{
-                URL = $ServerName
-                Port = $Port
-                ServiceType = "LDAPS"
-                StartDate = ''
-                EndDate = ''
-                Issuer = ''
-                Subject = ''
-                Protocol = $ProtocolVersion
-                Status = "Unknown"
-                ThreadId = [System.Threading.Thread]::CurrentThread.ManagedThreadId
-                ReverseDNSName = $reverseDNS
-                OSType = ''
-                OSDetails = ''
-                OSDetectionMethod = ''
-                OSConfidence = ''
-            }
+    $results = [PSCustomObject]@{
+        URL = $ServerName
+        Port = $Port
+        ServiceType = "LDAPS"
+        StartDate = ''
+        EndDate = ''
+        Issuer = ''
+        Subject = ''
+        Protocol = $ProtocolVersion
+        Status = "Unknown"
+        ThreadId = [System.Threading.Thread]::CurrentThread.ManagedThreadId
+        ReverseDNSName = $reverseDNS
+        OSType = ''
+        OSDetails = ''
+        OSDetectionMethod = ''
+        OSConfidence = ''
+        DaysUntilExpiration = $null
+        ExpirationStatus = ''
+    }
 
-            try {
-                # Create TCP client with timeout
-                $tcpClient = New-Object System.Net.Sockets.TcpClient
-                $asyncResult = $tcpClient.BeginConnect($ServerName, $Port, $null, $null)
-                $wait = $asyncResult.AsyncWaitHandle.WaitOne($TimeoutMs, $false)
-                
-                if (-not $wait) {
-                    $tcpClient.Close()
-                    throw "Connection timeout after $($TimeoutMs/1000) seconds"
-                }
-                
-                $tcpClient.EndConnect($asyncResult)
-                $networkStream = $tcpClient.GetStream()
-                
-                # Create SSL stream - LDAPS uses direct SSL/TLS connection
-                $sslStream = New-Object System.Net.Security.SslStream($networkStream, $false, {
-                    param($sender, $certificate, $chain, $sslPolicyErrors)
-                    # Accept all certificates for scanning purposes
-                    $true
-                })
-                
-                # Map protocol version string to enum
-                $protocolEnum = switch ($ProtocolVersion) {
-                    "Ssl3" { [System.Security.Authentication.SslProtocols]::Ssl3 }
-                    "Tls" { [System.Security.Authentication.SslProtocols]::Tls }
-                    "Tls11" { [System.Security.Authentication.SslProtocols]::Tls11 }
-                    "Tls12" { [System.Security.Authentication.SslProtocols]::Tls12 }
-                    "Default" { [System.Security.Authentication.SslProtocols]::Default }
-                    default { [System.Security.Authentication.SslProtocols]::Tls12 }
-                }
-                
-                # Authenticate as client (this establishes the SSL/TLS connection and exchanges certificates)
-                $sslStream.AuthenticateAsClient($ServerName, $null, $protocolEnum, $false)
-                
-                # Extract certificate information
-                if ($sslStream.RemoteCertificate) {
-                    $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2($sslStream.RemoteCertificate)
-                    
-                    $results.StartDate = $cert.NotBefore
-                    $results.EndDate = $cert.NotAfter
-                    $results.Issuer = $cert.Issuer
-                    $results.Subject = $cert.Subject
-                    $results.Status = "Success"
-                } else {
-                    throw "No certificate received from server"
-                }
-                
-                # Clean up
-                $sslStream.Close()
-                $networkStream.Close()
-                $tcpClient.Close()
-                
-                # Add OS detection after successful certificate scan
-                if ($GetOsType -and $results.Status -eq "Success") {
-                    $osInfo = Get-OSTypeFromHostInternal -IPAddress $ServerName -TimeoutMs $TimeoutMs
-                    $results.OSType = $osInfo.OSType
-                    $results.OSDetails = $osInfo.OSDetails
-                    $results.OSDetectionMethod = $osInfo.DetectionMethod
-                    $results.OSConfidence = $osInfo.Confidence
-                }
-                
-            } catch {
-                $results.StartDate = $_.Exception.Message
-                $results.EndDate = "LDAPS connection error. Check if LDAPS is enabled and certificate is valid."
-                $results.Status = "Error"
-                
-                # Clean up on error
-                try { if ($sslStream) { $sslStream.Close() } } catch { }
-                try { if ($networkStream) { $networkStream.Close() } } catch { }
-                try { if ($tcpClient) { $tcpClient.Close() } } catch { }
-            }
+    try {
+        # Create TCP client with timeout
+        $tcpClient = New-Object System.Net.Sockets.TcpClient
+        $asyncResult = $tcpClient.BeginConnect($ServerName, $Port, $null, $null)
+        $wait = $asyncResult.AsyncWaitHandle.WaitOne($TimeoutMs, $false)
+        
+        if (-not $wait) {
+            $tcpClient.Close()
+            throw "Connection timeout after $($TimeoutMs/1000) seconds"
+        }
+        
+        $tcpClient.EndConnect($asyncResult)
+        $networkStream = $tcpClient.GetStream()
+        
+        # Create SSL stream - LDAPS uses direct SSL/TLS connection
+        $sslStream = New-Object System.Net.Security.SslStream($networkStream, $false, {
+            param($sender, $certificate, $chain, $sslPolicyErrors)
+            # Accept all certificates for scanning purposes
+            $true
+        })
+        
+        # Map protocol version string to enum
+        $protocolEnum = switch ($ProtocolVersion) {
+            "Ssl3" { [System.Security.Authentication.SslProtocols]::Ssl3 }
+            "Tls" { [System.Security.Authentication.SslProtocols]::Tls }
+            "Tls11" { [System.Security.Authentication.SslProtocols]::Tls11 }
+            "Tls12" { [System.Security.Authentication.SslProtocols]::Tls12 }
+            "Default" { [System.Security.Authentication.SslProtocols]::Default }
+            default { [System.Security.Authentication.SslProtocols]::Tls12 }
+        }
+        
+        # Authenticate as client (this establishes the SSL/TLS connection and exchanges certificates)
+        $sslStream.AuthenticateAsClient($ServerName, $null, $protocolEnum, $false)
+        
+        # Extract certificate information
+        if ($sslStream.RemoteCertificate) {
+            $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2($sslStream.RemoteCertificate)
             
-            return $results
+            $results.StartDate = $cert.NotBefore
+            $results.EndDate = $cert.NotAfter
+            $results.Issuer = $cert.Issuer
+            $results.Subject = $cert.Subject
+            $results.Status = "Success"
+            
+            # Calculate expiration information
+            $today = (Get-Date).Date
+            $certEndDate = [datetime]$cert.NotAfter
+            $daysUntilExpiration = ($certEndDate.Date - $today).Days
+            $results.DaysUntilExpiration = $daysUntilExpiration
+            
+            if ($daysUntilExpiration -lt 0) {
+                $results.ExpirationStatus = "EXPIRED"
+            } else {
+                $results.ExpirationStatus = "OK"
+            }
+        } else {
+            throw "No certificate received from server"
+        }
+        
+        # Clean up
+        $sslStream.Close()
+        $networkStream.Close()
+        $tcpClient.Close()
+        
+        # Add OS detection after successful certificate scan
+        if ($GetOsType -and $results.Status -eq "Success") {
+            $osInfo = Get-OSTypeFromHostInternal -IPAddress $ServerName -TimeoutMs $TimeoutMs
+            $results.OSType = $osInfo.OSType
+            $results.OSDetails = $osInfo.OSDetails
+            $results.OSDetectionMethod = $osInfo.DetectionMethod
+            $results.OSConfidence = $osInfo.Confidence
+        }
+        
+    } catch {
+        $results.StartDate = $_.Exception.Message
+        $results.EndDate = "LDAPS connection error. Check if LDAPS is enabled and certificate is valid."
+        $results.Status = "Error"
+        
+        # Clean up on error
+        try { if ($sslStream) { $sslStream.Close() } } catch { }
+        try { if ($networkStream) { $networkStream.Close() } } catch { }
+        try { if ($tcpClient) { $tcpClient.Close() } } catch { }
+    }
+    
+    return $results
+}
+
+Function ScanSiteInformaitonInternal {
+    param($URLScanSiteInfo, $CustomPort, $TimeoutMs, $ServiceType, $ProtocolVersion, [switch]$IncludeReverseDNS, [switch]$GetOsType, [string]$DnsServer)
+
+    $reverseDNS = ""
+    if ($IncludeReverseDNS) {
+        $reverseDNS = Get-ReverseDnsNameInternal -IPAddress $URLScanSiteInfo -DnsServer $DnsServer
+    }
+
+    # For LDAPS, use specialized function
+    if ($ServiceType -eq "LDAPS" -or $CustomPort -eq 636) {
+        return Get-LDAPSCertificateInternal -ServerName $URLScanSiteInfo -Port $CustomPort -TimeoutMs $TimeoutMs -ProtocolVersion $ProtocolVersion -IncludeReverseDNS:$IncludeReverseDNS -GetOsType:$GetOsType -DnsServer $DnsServer
+    }
+
+    $results = [PSCustomObject]@{
+        URL = $URLScanSiteInfo
+        Port = $CustomPort
+        ServiceType = $ServiceType
+        StartDate = ''
+        EndDate = ''
+        Issuer = ''
+        Subject = ''
+        Protocol = $ProtocolVersion
+        Status = "Unknown"
+        ThreadId = [System.Threading.Thread]::CurrentThread.ManagedThreadId
+        ReverseDNSName = $reverseDNS
+        OSType = ''
+        OSDetails = ''
+        OSDetectionMethod = ''
+        OSConfidence = ''
+        DaysUntilExpiration = $null
+        ExpirationStatus = ''
+    }
+
+    Try {
+        [Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
+
+        $socket = New-Object Net.Sockets.TcpClient
+        $asyncResult = $socket.BeginConnect($URLScanSiteInfo, $CustomPort, $null, $null)
+        $wait = $asyncResult.AsyncWaitHandle.WaitOne($TimeoutMs, $false)
+
+        if (-not $wait) {
+            $socket.Close()
+            throw "Connection timeout after $($TimeoutMs/1000) seconds"
         }
 
-        Function ScanSiteInformaitonInternal {
-            param($URLScanSiteInfo, $CustomPort, $TimeoutMs, $ServiceType, $ProtocolVersion, [switch]$IncludeReverseDNS, [switch]$GetOsType, [string]$DnsServer)
+        $socket.EndConnect($asyncResult)
 
-            $reverseDNS = ""
-            if ($IncludeReverseDNS) {
-                $reverseDNS = Get-ReverseDnsNameInternal -IPAddress $URLScanSiteInfo -DnsServer $DnsServer
-            }
+        $stream = $socket.GetStream()
+        $sslStream = New-Object System.Net.Security.SslStream($stream, $false, ({ $True } -as [Net.Security.RemoteCertificateValidationCallback]))
+        
+        # Map protocol version correctly
+        $protocolEnum = switch ($ProtocolVersion) {
+            'Ssl3' { [System.Security.Authentication.SslProtocols]::Ssl3 }
+            'Tls' { [System.Security.Authentication.SslProtocols]::Tls }
+            'Tls11' { [System.Security.Authentication.SslProtocols]::Tls11 }
+            'Tls12' { [System.Security.Authentication.SslProtocols]::Tls12 }
+            'Default' { [System.Security.Authentication.SslProtocols]::Default }
+            default { [System.Security.Authentication.SslProtocols]::Tls12 }
+        }
+        
+        $sslStream.AuthenticateAsClient($URLScanSiteInfo, $null, $protocolEnum, $false)
 
-            # For LDAPS, use specialized function
-            if ($ServiceType -eq "LDAPS" -or $CustomPort -eq 636) {
-                return Get-LDAPSCertificateInternal -ServerName $URLScanSiteInfo -Port $CustomPort -TimeoutMs $TimeoutMs -ProtocolVersion $ProtocolVersion -IncludeReverseDNS:$IncludeReverseDNS -GetOsType:$GetOsType -DnsServer $DnsServer
-            }
+        $results.StartDate = $sslStream.RemoteCertificate.NotBefore
+        $results.EndDate = $sslStream.RemoteCertificate.NotAfter
+        $results.Issuer = $sslStream.RemoteCertificate.Issuer
+        $results.Subject = $sslStream.RemoteCertificate.Subject
+        $results.Status = "Success"
 
-            $results = [PSCustomObject]@{
-                URL = $URLScanSiteInfo
-                Port = $CustomPort
-                ServiceType = $ServiceType
-                StartDate = ''
-                EndDate = ''
-                Issuer = ''
-                Subject = ''
-                Protocol = $ProtocolVersion
-                Status = "Unknown"
-                ThreadId = [System.Threading.Thread]::CurrentThread.ManagedThreadId
-                ReverseDNSName = $reverseDNS
-                OSType = ''
-                OSDetails = ''
-                OSDetectionMethod = ''
-                OSConfidence = ''
-            }
-
-            Try {
-                [Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
-
-                $socket = New-Object Net.Sockets.TcpClient
-                $asyncResult = $socket.BeginConnect($URLScanSiteInfo, $CustomPort, $null, $null)
-                $wait = $asyncResult.AsyncWaitHandle.WaitOne($TimeoutMs, $false)
-
-                if (-not $wait) {
-                    $socket.Close()
-                    throw "Connection timeout after $($TimeoutMs/1000) seconds"
-                }
-
-                $socket.EndConnect($asyncResult)
-
-                $stream = $socket.GetStream()
-                $sslStream = New-Object System.Net.Security.SslStream($stream, $false, ({ $True } -as [Net.Security.RemoteCertificateValidationCallback]))
-                $sslStream.AuthenticateAsClient($URLScanSiteInfo, $null, [System.Security.Authentication.SslProtocols]$ProtocolVersion, $false)
-
-                $results.StartDate = $sslStream.RemoteCertificate.NotBefore
-                $results.EndDate = $sslStream.RemoteCertificate.NotAfter
-                $results.Issuer = $sslStream.RemoteCertificate.Issuer
-                $results.Subject = $sslStream.RemoteCertificate.Subject
-                $results.Status = "Success"
-
-                $socket.close()
-                
-                # Add OS detection after successful certificate scan
-                if ($GetOsType -and $results.Status -eq "Success") {
-                    $osInfo = Get-OSTypeFromHostInternal -IPAddress $URLScanSiteInfo -TimeoutMs $TimeoutMs
-                    $results.OSType = $osInfo.OSType
-                    $results.OSDetails = $osInfo.OSDetails
-                    $results.OSDetectionMethod = $osInfo.DetectionMethod
-                    $results.OSConfidence = $osInfo.Confidence
-                }
-            }
-            Catch {
-                $results.StartDate = $_.Exception.Message
-                $results.EndDate = "Connection or protocol error. Try using a different -ProtocolVersion."
-                $results.Status = "Error"
-            }
-
-            Return $results
+        # Calculate expiration information
+        $today = (Get-Date).Date
+        $certEndDate = [datetime]$sslStream.RemoteCertificate.NotAfter
+        $daysUntilExpiration = ($certEndDate.Date - $today).Days
+        $results.DaysUntilExpiration = $daysUntilExpiration
+        
+        if ($daysUntilExpiration -lt 0) {
+            $results.ExpirationStatus = "EXPIRED"
+        } else {
+            $results.ExpirationStatus = "OK"
         }
 
+        $socket.close()
+        
+        # Add OS detection after successful certificate scan
+        if ($GetOsType -and $results.Status -eq "Success") {
+            $osInfo = Get-OSTypeFromHostInternal -IPAddress $URLScanSiteInfo -TimeoutMs $TimeoutMs
+            $results.OSType = $osInfo.OSType
+            $results.OSDetails = $osInfo.OSDetails
+            $results.OSDetectionMethod = $osInfo.DetectionMethod
+            $results.OSConfidence = $osInfo.Confidence
+        }
+    }
+    Catch {
+        $results.StartDate = $_.Exception.Message
+        $results.EndDate = "Connection or protocol error. Try using a different -ProtocolVersion."
+        $results.Status = "Error"
+    }
+
+    Return $results
+}
         # Main scanning logic
         $serviceType = if ($Port -eq 636) { "LDAPS" } else { "HTTPS" }
 
@@ -1253,39 +1395,100 @@ Function Invoke-ParallelScan {
 Function Apply-ExpirationFilter {
     param(
         [array]$Results,
-        [int]$ExpiresInDays
+        [int]$ExpiresInDays,
+        [switch]$ExcludeExpired
     )
     
+    if ($null -eq $Results -or $Results.Count -eq 0) {
+        return @()
+    }
+    
     $Today = (Get-Date).Date
+    $filteredResults = @()
+    
+    foreach ($result in $Results) {
+        # Skip non-successful results
+        if ($result.Status -ne "Success") {
+            continue
+        }
+        
+        # Parse EndDate - it might be a string or datetime
+        $endDate = $null
+        try {
+            if ($result.EndDate -is [datetime]) {
+                $endDate = $result.EndDate
+            } elseif ($result.EndDate -is [string] -and $result.EndDate -ne "") {
+                $endDate = [datetime]::Parse($result.EndDate)
+            } else {
+                continue  # Skip if we can't parse the date
+            }
+        } catch {
+            Write-Warning "Could not parse EndDate '$($result.EndDate)' for $($result.URL):$($result.Port)"
+            continue
+        }
+        
+        # Calculate days until expiration
+        $daysUntilExpiration = ($endDate.Date - $Today).Days
+        
+        # Add expiration info to the result object
+        $result | Add-Member -Name "DaysUntilExpiration" -Value $daysUntilExpiration -MemberType NoteProperty -Force
+        
+        if ($daysUntilExpiration -lt 0) {
+            $result | Add-Member -Name "ExpirationStatus" -Value "EXPIRED" -MemberType NoteProperty -Force
+        } elseif ($daysUntilExpiration -le $ExpiresInDays) {
+            $result | Add-Member -Name "ExpirationStatus" -Value "EXPIRING SOON" -MemberType NoteProperty -Force
+        } else {
+            $result | Add-Member -Name "ExpirationStatus" -Value "OK" -MemberType NoteProperty -Force
+        }
+        
+        # Apply filtering logic
+        $shouldInclude = $false
+        
+        if ($ExcludeExpired -and $daysUntilExpiration -lt 0) {
+            # Exclude expired certificates
+            $shouldInclude = $false
+        } elseif ($ExpiresInDays -eq 0) {
+            # Show only expired certificates
+            $shouldInclude = ($daysUntilExpiration -lt 0)
+        } else {
+            # Show certificates expiring within specified days (including expired if not excluded)
+            if ($ExcludeExpired) {
+                $shouldInclude = ($daysUntilExpiration -ge 0 -and $daysUntilExpiration -le $ExpiresInDays)
+            } else {
+                $shouldInclude = ($daysUntilExpiration -le $ExpiresInDays)
+            }
+        }
+        
+        if ($shouldInclude) {
+            $filteredResults += $result
+        }
+    }
+    
+    # Display filtering summary
+    if ($ExcludeExpired) {
+        Write-Host "Excluded already expired certificates from results." -ForegroundColor Yellow
+    }
     
     if ($ExpiresInDays -eq 0) {
-        # Show only already expired certificates
-        $filteredResults = $Results | Where-Object {
-            $_.Status -eq "Success" -and
-            $_.EndDate -is [datetime] -and
-            $_.EndDate -lt $Today
-        }
-        Write-Host "Filtered results to show only already expired certificates." -ForegroundColor Yellow
+        Write-Host "Filtered to show only already expired certificates: $($filteredResults.Count) found." -ForegroundColor Yellow
     } else {
-        # Show certificates expiring within the specified number of days
-        $ExpirationThreshold = $Today.AddDays($ExpiresInDays)
-        $filteredResults = $Results | Where-Object {
-            $_.Status -eq "Success" -and
-            $_.EndDate -is [datetime] -and
-            $_.EndDate -le $ExpirationThreshold
-        }
-        Write-Host "Filtered results to show certificates expiring by $($ExpirationThreshold.ToShortDateString())." -ForegroundColor Yellow
+        Write-Host "Filtered to show certificates expiring within $ExpiresInDays days: $($filteredResults.Count) found." -ForegroundColor Yellow
     }
     
     return $filteredResults
 }
+
 
 Function Save-Results {
     param(
         [array]$Results,
         [string]$SaveAsTo
     )
-    
+    # Check if Results is null or empty - do nothing if so
+    if ($null -eq $Results -or $Results.Count -eq 0) {
+        Write-Host "No results to save (Results is null or empty)" -ForegroundColor Yellow
+        return
+    }
     try {
         # Check if filename starts with + for append mode
         $appendMode = $SaveAsTo.StartsWith("+")
@@ -1411,8 +1614,8 @@ if ($PSCmdlet.ParameterSetName -eq "NetworkScan") {
     $Fullresult = Invoke-ParallelScan -IPList $allIPs -PortList $portsToScan -MaxThreads $MaxThreads -TimeoutMs ($TimeoutSeconds * 1000) -ProtocolVersion $ProtocolVersion -IncludeReverseDNS:$IncludeReverseDNS -GetOsType:$GetOsType -DnsServer $DnsServer
 
     # Apply expiration filter only if ExpiresInDays parameter was explicitly provided
-    if ($PSBoundParameters.ContainsKey("ExpiresInDays")) {
-        $Fullresult = Apply-ExpirationFilter -Results $Fullresult -ExpiresInDays $ExpiresInDays
+    if ($PSBoundParameters.ContainsKey("ExpiresInDays") -or $ExcludeExpired) {
+        $Fullresult = Apply-ExpirationFilter -Results $Fullresult -ExpiresInDays $ExpiresInDays -ExcludeExpired:$ExcludeExpired
     }
 
     # Filter out port closed results for cleaner output
@@ -1482,8 +1685,8 @@ if ($PSCmdlet.ParameterSetName -eq "ReadFromFile") {
     }
     
     # Apply expiration filter only if ExpiresInDays parameter was explicitly provided
-    if ($PSBoundParameters.ContainsKey("ExpiresInDays")) {
-        $Fullresult = Apply-ExpirationFilter -Results $Fullresult -ExpiresInDays $ExpiresInDays
+    if ($PSBoundParameters.ContainsKey("ExpiresInDays") -or $ExcludeExpired) {
+         $Fullresult = Apply-ExpirationFilter -Results $Fullresult -ExpiresInDays $ExpiresInDays -ExcludeExpired:$ExcludeExpired
     }
 
     if ($PSBoundParameters.Keys -like "SaveAsTo"){
@@ -1506,8 +1709,8 @@ if ($pscmdlet.ParameterSetName -eq "Online") {
    $Fullresult=ScanSiteInformaiton -URLScanSiteInfo $SiteToScan -IncludeReverseDNS:$IncludeReverseDNS -GetOsType:$GetOsType -DnsServer $DnsServer
    
    # Apply expiration filter only if ExpiresInDays parameter was explicitly provided
-   if ($PSBoundParameters.ContainsKey("ExpiresInDays")) {
-       $Fullresult = Apply-ExpirationFilter -Results $Fullresult -ExpiresInDays $ExpiresInDays
+   if ($PSBoundParameters.ContainsKey("ExpiresInDays") -or $ExcludeExpired) {
+       $Fullresult = Apply-ExpirationFilter -Results $Fullresult -ExpiresInDays $ExpiresInDays -ExcludeExpired:$ExcludeExpired
    }
 
    if ($PSBoundParameters.Keys -like "SaveAsTo"){
