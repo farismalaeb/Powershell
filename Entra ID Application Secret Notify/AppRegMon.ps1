@@ -1,11 +1,11 @@
 [CmdletBinding(DefaultParameterSetName = 'Secret')]
 param (
-    [Parameter(Mandatory=$false)][string]$TenantId='979feaee-b9cb-4b5d-b3c3-5a11ee95b809',
+    [Parameter(Mandatory=$false)][string]$TenantId,
     [Parameter(Mandatory=$false)][string]$ClientId,
     [Parameter(Mandatory=$false, ParameterSetName = 'Certificate')][string]$CertificateThumbprint,
     [Parameter(Mandatory=$false, ParameterSetName = 'Secret')][securestring]$ClientSecret,
-    [Parameter(Mandatory=$false)][string]$SenderMailbox='admin@powershellcode.com',
-    [Parameter(Mandatory=$false)][string]$FallbackEmail='admin@powershellcode.com',
+    [Parameter(Mandatory=$false)][string]$SenderMailbox,
+    [Parameter(Mandatory=$false)][string]$FallbackEmail,
     [int]$DaysThreshold = 30,
     [string[]]$IncludeAdmin
 )
