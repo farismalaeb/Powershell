@@ -1,9 +1,11 @@
 <#PSScriptInfo
-.VERSION 3.9.2.0
+.VERSION 3.9.3.0
+.Date 10 Oct 2026
 .GUID 163f0d06-5bef-4d9a-bf8b-0c353b92ffc0
 .AUTHOR Faris Malaeb
 .IMPROVEMENT Alessandro Tanino
-.COMPANYNAME powershellcenter.com
+.LinkedIn: https://www.linkedin.com/in/alessandro-tanino/ 
+.COMPANYNAME PowerShellCenter.com
 .COPYRIGHT
 .TAGS SSL, Certificate, Scan, Network, OS Detection, DNS
 .LICENSEURI
@@ -149,7 +151,7 @@ Function Show-Help {
     Write-Host @"
 
 ╔══════════════════════════════════════════════════════════════════════════════════════╗
-║                          SSL/TLS Certificate Scanner v3.9.2.0                        ║
+║                          SSL/TLS Certificate Scanner v3.9.3.0                        ║
 ║                     Network Discovery & Certificate Analysis Tool                    ║
 ╚══════════════════════════════════════════════════════════════════════════════════════╝
 
@@ -732,7 +734,7 @@ Function Get-LDAPSCertificate {
     return $results
 }
 
-Function ScanSiteInformaiton{
+Function ScanSiteInformation{
     param(
         $URLScanSiteInfo,
         $CustomPort = $null,
@@ -803,8 +805,6 @@ Function ScanSiteInformaiton{
     }
 
     Try{
-        [Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
-
         # Add timeout for socket connection
         $socket = New-Object Net.Sockets.TcpClient
         $asyncResult = $socket.BeginConnect($URLScanSite, $PortToScan, $null, $null)
@@ -897,40 +897,29 @@ Function ScanSiteInformaiton{
                 return $null # Certificate expires too far in the future, don't return it
             }
         }
+    
+    Finally {
+        if ($sslStream) { try { $sslStream.Dispose() } catch { } }
+        if ($stream) { try { $stream.Dispose() } catch { } }
+        if ($socket) { try { $socket.Dispose() } catch { } }
     }
+
+    Finally {
+        if ($sslStream) { try { $sslStream.Dispose() } catch { } }
+        if ($networkStream) { try { $networkStream.Dispose() } catch { } }
+        if ($tcpClient) { try { $tcpClient.Dispose() } catch { } }
+    }
+}
 
     Return $results
 }
 
 # Example usage:
-# ScanSiteInformaiton -URLScanSiteInfo "example.com" -IncludeReverseDNS -DNSServer "10.185.16.4" -GetOsType -TimeoutSeconds 4 -ExpiresInDays 60
+# ScanSiteInformation -URLScanSiteInfo "example.com" -IncludeReverseDNS -DNSServer "10.10.10.10" -GetOsType -TimeoutSeconds 4 -ExpiresInDays 60
 
 # You'll also need this helper function for reverse DNS lookups:
-Function Get-ReverseDnsName {
-    param(
-        [string]$IPAddress,
-        [string]$DnsServer = $null
-    )
-    
-    try {
-        if ($DnsServer) {
-            # Use specified DNS server
-            $result = Resolve-DnsName -Name $IPAddress -Server $DnsServer -Type PTR -ErrorAction Stop -DnsOnly
-            if ($result -and $result.NameHost) {
-                return $result.NameHost
-            }
-        } else {
-            # Use system DNS
-            $hostEntry = [System.Net.Dns]::GetHostEntry($IPAddress)
-            return $hostEntry.HostName
-        }
-    }
-    catch {
-        return "DNS lookup failed: $($_.Exception.Message)"
-    }
-    
-    return "No reverse DNS record found"
-}
+
+
 
 Function Invoke-ParallelScan {
     param(
@@ -1187,7 +1176,7 @@ Function Invoke-ParallelScan {
     return $results
 }
 
-Function ScanSiteInformaitonInternal {
+Function ScanSiteInformationInternal {
     param($URLScanSiteInfo, $CustomPort, $TimeoutMs, $ServiceType, $ProtocolVersion, [switch]$IncludeReverseDNS, [switch]$GetOsType, [string]$DnsServer)
 
     $reverseDNS = ""
@@ -1221,8 +1210,6 @@ Function ScanSiteInformaitonInternal {
     }
 
     Try {
-        [Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
-
         $socket = New-Object Net.Sockets.TcpClient
         $asyncResult = $socket.BeginConnect($URLScanSiteInfo, $CustomPort, $null, $null)
         $wait = $asyncResult.AsyncWaitHandle.WaitOne($TimeoutMs, $false)
@@ -1282,7 +1269,13 @@ Function ScanSiteInformaitonInternal {
         $results.StartDate = $_.Exception.Message
         $results.EndDate = "Connection or protocol error. Try using a different -ProtocolVersion."
         $results.Status = "Error"
+    
+    Finally {
+        if ($sslStream) { try { $sslStream.Dispose() } catch { } }
+        if ($stream) { try { $stream.Dispose() } catch { } }
+        if ($socket) { try { $socket.Dispose() } catch { } }
     }
+}
 
     Return $results
 }
@@ -1290,7 +1283,7 @@ Function ScanSiteInformaitonInternal {
         $serviceType = if ($Port -eq 636) { "LDAPS" } else { "HTTPS" }
 
         if (Test-TCPPortInternal -IPAddress $IP -Port $Port -TimeoutMs $TimeoutMs) {
-            return ScanSiteInformaitonInternal -URLScanSiteInfo $IP -CustomPort $Port -TimeoutMs $TimeoutMs -ServiceType $serviceType -ProtocolVersion $ProtocolVersion -IncludeReverseDNS:$IncludeReverseDNS -GetOsType:$GetOsType -DnsServer $DnsServer
+            return ScanSiteInformationInternal -URLScanSiteInfo $IP -CustomPort $Port -TimeoutMs $TimeoutMs -ServiceType $serviceType -ProtocolVersion $ProtocolVersion -IncludeReverseDNS:$IncludeReverseDNS -GetOsType:$GetOsType -DnsServer $DnsServer
         } else {
             $reverseDNS = ""
             if ($IncludeReverseDNS) {
@@ -1680,7 +1673,7 @@ if ($PSCmdlet.ParameterSetName -eq "ReadFromFile") {
     $Fullresult=@()
     $CertificateList=Get-Content -Path $LoadFromFile
     Foreach($url in $CertificateList){
-        $siteresults=ScanSiteInformaiton -URLScanSiteInfo $url -IncludeReverseDNS:$IncludeReverseDNS -GetOsType:$GetOsType -DnsServer $DnsServer
+        $siteresults=ScanSiteInformation -URLScanSiteInfo $url -IncludeReverseDNS:$IncludeReverseDNS -GetOsType:$GetOsType -DnsServer $DnsServer
         $Fullresult+=$siteresults
     }
     
@@ -1706,7 +1699,7 @@ if ($PSCmdlet.ParameterSetName -eq "ReadFromFile") {
 }
 
 if ($pscmdlet.ParameterSetName -eq "Online") {
-   $Fullresult=ScanSiteInformaiton -URLScanSiteInfo $SiteToScan -IncludeReverseDNS:$IncludeReverseDNS -GetOsType:$GetOsType -DnsServer $DnsServer
+   $Fullresult=ScanSiteInformation -URLScanSiteInfo $SiteToScan -IncludeReverseDNS:$IncludeReverseDNS -GetOsType:$GetOsType -DnsServer $DnsServer
    
    # Apply expiration filter only if ExpiresInDays parameter was explicitly provided
    if ($PSBoundParameters.ContainsKey("ExpiresInDays") -or $ExcludeExpired) {
