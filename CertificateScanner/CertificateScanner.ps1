@@ -56,7 +56,7 @@ Display comprehensive usage examples
 .\CertificateScanner.ps1 -Help
 Display help and syntax information
 #>
-
+#Requires -Version 7.0
 [CmdletBinding(DefaultParameterSetName='Help')]
 param(
     # Core scanning parameters
