@@ -1,39 +1,111 @@
-[CmdletBinding(DefaultParameterSetName = 'Secret')]
-param (
-    [Parameter(Mandatory=$false)][string]$TenantId,
-    [Parameter(Mandatory=$false)][string]$ClientId,
-    [Parameter(Mandatory=$false, ParameterSetName = 'Certificate')][string]$CertificateThumbprint,
-    [Parameter(Mandatory=$false, ParameterSetName = 'Secret')][securestring]$ClientSecret,
-    [Parameter(Mandatory=$false)][string]$SenderMailbox,
-    [Parameter(Mandatory=$false)][string]$FallbackEmail,
-    [int]$DaysThreshold = 30,
-    [string[]]$IncludeAdmin
-)
+<#
+Version history:
+REQUIRED Automation Account resources (this runbook will fail with a named error if any are missing):
+  Variables   : 
+  - AAtenant: Your Entra ID tenant ID
+  - AppReg_AppID: Application (client) ID of the runbook's app registration
+  - AppMonSenderMailbox: Mailbox the emails are sent from
+  - AppMonFallbackEmail: Receives reports for apps with no owner
+  - AppReg_DaysThreshold: How many days ahead to look; expired credentials are always included
+  - App_Reg_IncludeAdmin: Admins who receive the full tenant report, comma separated
+  The application authenticate to Graph using Certificate, not ClientSecret
+  
+REQUIRED modules imported into this Automation Account (Shared Resources > Modules):
+  Microsoft.Graph.Authentication
+  Microsoft.Graph.Applications
+  Microsoft.Graph.Users.Actions   (for Send-MgUserMail)
+Note: #Requires -Modules is NOT honored by Azure Automation's runbook execution — modules must
+be imported into the Automation Account itself, not just referenced in the script.
 
-Write-Output "Version 1.5"
+REQUIRED Graph API permissions on the app registration (read-only; no write scopes needed):
+  Application.Read.All
+  Mail.Send
+#>
+try{
+    [int]$DaysThreshold = Get-AutomationVariable -Name 'AppReg_DaysThreshold' -ErrorAction Stop
+}
+catch{
+        throw "[ERR]::Automation Variable 'AppReg_DaysThreshold' not found or inaccessible: $($_.Exception.Message)"
+}
+
+try{
+     [string[]]$IncludeAdmin = Get-AutomationVariable -Name 'App_Reg_IncludeAdmin' -ErrorAction Stop
+}
+catch{
+        throw "[ERR]::Automation Variable 'App_Reg_IncludeAdmin' not found or inaccessible: $($_.Exception.Message)"
+}
+
+Write-Output "Version 1.6"
 Write-Output "[INFO]:: Starting"
 [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12
 
-# Connect to Microsoft Graph using the selected authentication method
+#### Azure Automation configuration (Certificate Authentication) ####
+# Each lookup is wrapped individually so a missing Variable/Certificate in this
+# Automation Account fails with a clear, named error instead of an opaque
+# "unhandled exception" at the job level.
 try {
-    if ($PSCmdlet.ParameterSetName -eq 'Secret') {
-        $cred = [pscredential]::new($ClientId, $ClientSecret)
-        Connect-MgGraph -TenantId $TenantId -ClientSecretCredential $cred -NoWelcome -ErrorAction Stop
-    }
-    else {
-        Connect-MgGraph -ClientId $ClientId -TenantId $TenantId -CertificateThumbprint $CertificateThumbprint -NoWelcome -ErrorAction Stop
-    }
-    Write-Output "[INFO]:: Connected using $($PSCmdlet.ParameterSetName) authentication"
+    $tenant = Get-AutomationVariable -Name 'AAtenant' -ErrorAction Stop
 }
 catch {
-    Write-Error "Error connecting to Microsoft Graph: $($_.Exception.Message)"
-    exit 1
+    throw "[ERR]::Automation Variable 'AAtenant' not found or inaccessible: $($_.Exception.Message)"
 }
+
+try {
+    $Client_Id = Get-AutomationVariable -Name 'AppReg_AppID' -ErrorAction Stop
+}
+catch {
+    throw "[ERR]::Automation Variable 'AppReg_AppID' not found or inaccessible: $($_.Exception.Message)"
+}
+
+$CertificateName = "AppMonCert"
+try {
+    $certObj = Get-AutomationCertificate -Name $CertificateName -ErrorAction Stop
+    if (-not $certObj) { throw "Get-AutomationCertificate returned nothing for '$CertificateName'" }
+    $cert = $certObj.Thumbprint
+}
+catch {
+    throw "[ERR]::Automation Certificate '$CertificateName' not found or inaccessible: $($_.Exception.Message)"
+}
+
+# SenderMailbox / FallbackEmail: pull from Automation Variables if present,
+# otherwise fall back to the values hardcoded in the old runbook.
+try {
+    $SenderMailbox = Get-AutomationVariable -Name 'AppMonSenderMailbox' -ErrorAction Stop
+}
+catch {
+    throw "[WARN]::Automation Variable 'AppMonSenderMailbox' not found."
+}
+
+try {
+    $FallbackEmail = Get-AutomationVariable -Name 'AppMonFallbackEmail' -ErrorAction Stop
+}
+catch {
+    throw "[WARN]::Automation Variable 'AppMonFallbackEmail' not found."
+}
+
+Write-Output "[INFO]:: Configuration Load is complete"
+
+# Connect to Microsoft Graph using Certificate Authentication
+try {
+    Connect-MgGraph -ClientId $Client_Id -TenantId $tenant -CertificateThumbprint $cert -NoWelcome -ErrorAction Stop
+    Write-Output "[INFO]:: Connected using Certificate authentication"
+}
+catch {
+    throw "Error connecting to Microsoft Graph: $($_.Exception.Message)"
+}
+
+
 
 $expirationLimit = (Get-Date).AddDays($DaysThreshold)
 
 # Retrieve all App Registrations that have secrets or certificates
-$servicePrincipals = Get-MgApplication -All | Where-Object {($_.PasswordCredentials -notlike $null) -or ($_.KeyCredentials -notlike $null)}
+try {
+    $servicePrincipals = Get-MgApplication -All -ErrorAction Stop | Where-Object {($_.PasswordCredentials -notlike $null) -or ($_.KeyCredentials -notlike $null)}
+}
+catch {
+    throw "[ERR]::Failed to retrieve App Registrations: $($_.Exception.Message)"
+
+    }
 Write-Output "[INFO]:: Number of Apps matching is : $($servicePrincipals.count)"
 
 # Prepare report with owner information
@@ -46,14 +118,17 @@ foreach ($sp in $servicePrincipals) {
     $appOwners = @()
     try {
         $owners = Get-MgApplicationOwner -ApplicationId $sp.Id
-        foreach ($owner in $($owners | Where-Object {$_.AdditionalProperties.userPrincipalName -notlike "*_*"})) {
+        foreach ($owner in $owners | where {$_.AdditionalProperties.'@odata.type' -notlike '*.servicePrincipal*'}) {
             if ($owner.AdditionalProperties.mail) {
                 $appOwners += $owner.AdditionalProperties.mail
+            }
+            Else {
+                Write-Warning "Unable to read the Mail value for $($owner.id) of type $($owner.AdditionalProperties.'@odata.type')" 
             }
         }
     }
     catch {
-        Write-Output "[WARN]::Unable to get owners for $($sp.DisplayName): $($_.Exception.Message)"
+        Write-Error "[WARN]::Unable to get owners for $($sp.DisplayName): $($_.Exception.Message)"
     }
 
     # If no owners found, use the fallback email
@@ -101,9 +176,15 @@ foreach ($sp in $servicePrincipals) {
 
 ### Enterprise Applications: SAML SSO signing certificates
 # SAML signing certificates live on the service principal, not on the app registration.
-Write-Output "[INFO]:: Checking Enterprise Applications with SAML SSO"
-$samlApps = Get-MgServicePrincipal -All -Property Id, AppId, DisplayName, PreferredSingleSignOnMode, PreferredTokenSigningKeyThumbprint, KeyCredentials, NotificationEmailAddresses |
-    Where-Object { $_.PreferredSingleSignOnMode -eq 'saml' -and $_.KeyCredentials }
+Write-Output "%%%%%%%%%%%%%%%%%   [INFO]:: Checking Enterprise Applications with SAML SSO   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
+try {
+    $samlApps = Get-MgServicePrincipal -All -Property Id, AppId, DisplayName, PreferredSingleSignOnMode, PreferredTokenSigningKeyThumbprint, KeyCredentials, NotificationEmailAddresses -ErrorAction Stop |
+        Where-Object { $_.PreferredSingleSignOnMode -eq 'saml' -and $_.KeyCredentials }
+}
+catch {
+    Write-Error "[WARN]::Failed to retrieve Enterprise Applications (SAML check skipped): $($_.Exception.Message)"
+    $samlApps = @()
+}
 Write-Output "[INFO]:: Number of SAML Enterprise Apps is : $($samlApps.count)"
 
 foreach ($samlApp in $samlApps) {
@@ -126,14 +207,18 @@ foreach ($samlApp in $samlApps) {
     $samlOwners = @()
     try {
         $owners = Get-MgServicePrincipalOwner -ServicePrincipalId $samlApp.Id
-        foreach ($owner in $($owners | Where-Object {$_.AdditionalProperties.userPrincipalName -notlike "*_*"})) {
+        foreach ($owner in $owners ) {
             if ($owner.AdditionalProperties.mail) {
                 $samlOwners += $owner.AdditionalProperties.mail
+            }
+            else {
+                Write-Warning "Unable to read the Mail value for $($owner.id), UPN: $($owner.AdditionalProperties.userPrincipalName), Object Type: $($owner.AdditionalProperties.'@odata.type')" 
+
             }
         }
     }
     catch {
-        Write-Output "[WARN]::Unable to get owners for $($samlApp.DisplayName): $($_.Exception.Message)"
+        Write-Warning "[WARN]::Unable to get owners for $($samlApp.DisplayName): $($_.Exception.Message)"
     }
 
     # No owners? Use the SAML certificate notification emails, then the fallback email
@@ -179,6 +264,7 @@ if ($fullresults.Count -gt 0) {
     .warning { background-color: #fcf8e3 !important; color: #8a6d3b; }
 </style>
 "@
+
 
     # Group results by owner
     $ownerGroups = @{}
@@ -276,7 +362,7 @@ if ($fullresults.Count -gt 0) {
 
     ### Send the full report to the admin(s), if requested
     if ($IncludeAdmin) {
-        # Support both an array and a comma separated string (useful with Task Scheduler)
+        # Support both an array and a comma separated string (useful with Task Scheduler / Automation schedule params)
         $adminList = $IncludeAdmin -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ } | Select-Object -Unique
         Write-Output "[EMAIL]::Preparing full admin report for $($adminList -join ', ')"
 
